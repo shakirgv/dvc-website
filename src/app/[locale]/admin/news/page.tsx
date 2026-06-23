@@ -67,7 +67,8 @@ export default function AdminNewsPage() {
       content_az: "", content_en: "", content_ru: "",
       image_url: "",
       status: "Draft",
-      views: 0
+      views: 0,
+      created_at: new Date().toISOString()
     });
     setCurrentLang("az");
     setIsModalOpen(true);
@@ -222,7 +223,23 @@ export default function AdminNewsPage() {
               <form onSubmit={handleSave} className="space-y-6">
                 
                 {/* GLOBAL SETTINGS */}
-                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-2xl border border-border">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-2xl border border-border">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-muted-foreground uppercase flex justify-between">
+                      <span>Tarix</span>
+                      <button type="button" onClick={() => handleGlobalChange("created_at", new Date().toISOString())} className="text-primary text-xs hover:underline">Bugün</button>
+                    </label>
+                    <input 
+                      type="date" 
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={formData.created_at ? formData.created_at.split('T')[0] : ""}
+                      onChange={e => {
+                        if (e.target.value) {
+                          handleGlobalChange("created_at", new Date(e.target.value).toISOString());
+                        }
+                      }}
+                    />
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold text-muted-foreground uppercase">Status</label>
                     <select 
