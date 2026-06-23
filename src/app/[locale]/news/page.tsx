@@ -6,6 +6,7 @@ import { Calendar, Eye, ChevronRight, Newspaper } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { formatCustomDate } from "@/lib/formatDate";
 
 export default function PublicNewsPage() {
   const params = useParams();
@@ -88,10 +89,7 @@ export default function PublicNewsPage() {
               const title = news[`title_${locale}`] || news.title_az || "Adı yoxdur";
               const excerpt = news[`excerpt_${locale}`] || news.excerpt_az || "";
               const dateObj = new Date(news.created_at);
-              const formattedDate = dateObj.toLocaleDateString(
-                locale === 'az' ? 'az-AZ' : locale === 'en' ? 'en-US' : 'ru-RU', 
-                { day: 'numeric', month: 'short', year: 'numeric' }
-              );
+              const formattedDate = formatCustomDate(dateObj, locale);
 
               return (
                 <Link href={`/${locale}/news/${news.id}`} key={news.id}>

@@ -6,6 +6,7 @@ import { Calendar, Eye, ChevronRight, Newspaper, ArrowLeft } from "lucide-react"
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { formatCustomDate } from "@/lib/formatDate";
 
 export default function NewsDetailPage() {
   const params = useParams();
@@ -59,10 +60,7 @@ export default function NewsDetailPage() {
   const title = newsItem[`title_${locale}`] || newsItem.title_az || "Untitled";
   const content = newsItem[`content_${locale}`] || newsItem.content_az || "";
   const dateObj = new Date(newsItem.created_at);
-  const formattedDate = dateObj.toLocaleDateString(
-    locale === 'az' ? 'az-AZ' : locale === 'en' ? 'en-US' : 'ru-RU', 
-    { day: 'numeric', month: 'short', year: 'numeric' }
-  );
+  const formattedDate = formatCustomDate(dateObj, locale);
 
   return (
     <div className="min-h-screen bg-background pt-24 pb-20">
