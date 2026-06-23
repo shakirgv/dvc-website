@@ -26,6 +26,7 @@ export default function AdminNewsPage() {
   
   // Form State
   const [formData, setFormData] = useState<Partial<NewsItem>>({});
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     fetchNews();
@@ -104,6 +105,32 @@ export default function AdminNewsPage() {
 
   const handleGlobalChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    
+    setIsUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("dvc_images")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      alert("Şəkil yüklənərkən xəta baş verdi: " + uploadError.message);
+      setIsUploading(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from("dvc_images").getPublicUrl(filePath);
+    if (data?.publicUrl) {
+      setFormData(prev => ({ ...prev, image_url: data.publicUrl }));
+    }
+    setIsUploading(false);
   };
 
   return (
@@ -208,14 +235,29 @@ export default function AdminNewsPage() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Şəkil URL</label>
-                    <input 
-                      type="text" 
-                      placeholder="https://..."
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={formData.image_url || ""}
-                      onChange={e => handleGlobalChange("image_url", e.target.value)}
-                    />
+                    <label className="text-sm font-bold text-muted-foreground uppercase flex items-center justify-between">
+                      <span>Şəkil (URL və ya Yüklə)</span>
+                      {isUploading && <span className="text-xs text-primary animate-pulse">Yüklənir...</span>}
+                    </label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="https://..."
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={formData.image_url || ""}
+                        onChange={e => handleGlobalChange("image_url", e.target.value)}
+                      />
+                      <label className="flex items-center justify-center px-4 py-2 bg-muted border border-border rounded-xl cursor-pointer hover:bg-muted/80 transition-colors shrink-0">
+                        <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleImageUpload}
+                          disabled={isUploading}
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
 
