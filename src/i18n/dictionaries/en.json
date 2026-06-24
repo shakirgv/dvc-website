@@ -145,5 +145,15 @@
     "badge": "Board of Directors",
     "title": "Our Team",
     "subtitle": "Meet the professional and dedicated board members behind DVC's success story."
+  },
+  "about": {
+    "badge": "About Us",
+    "title": "Youth Development Center for the Future",
+    "description": "The Debate in Civil Society Public Union (DVC) has been serving the personal and professional development, education, and enlightenment of youth in Azerbaijan since 1998. Our mission is to support every young person in discovering their potential.",
+    "feature_1": "Youth Development",
+    "feature_2": "Education Programs",
+    "feature_3": "Innovative Approach",
+    "feature_4": "Career Support",
+    "read_more": "Read More"
   }
 }

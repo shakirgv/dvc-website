@@ -145,5 +145,15 @@
     "badge": "İdarə Heyəti",
     "title": "Komandamız",
     "subtitle": "DVC-nin uğur hekayəsinin arxasında dayanan peşəkar və əzmli idarə heyəti ilə tanış olun."
+  },
+  "about": {
+    "badge": "Haqqımızda",
+    "title": "Gənclərin Gələcəyə Doğru İnkişaf Mərkəzi",
+    "description": "Vətəndaş Cəmiyyətində Debat İctimai Birliyi (DVC) 1998-ci ildən bəri Azərbaycanda gənclərin fərdi və peşəkar inkişafına, təhsilinə və maarifləndirilməsinə xidmət edir. Bizim missiyamız hər bir gəncin potensialını kəşf etməsinə dəstək olmaqdır.",
+    "feature_1": "Gənclərin İnkişafı",
+    "feature_2": "Təhsil Proqramları",
+    "feature_3": "İnnovativ Yanaşma",
+    "feature_4": "Karyera Dəstəyi",
+    "read_more": "Daha Ətraflı"
   }
 }
