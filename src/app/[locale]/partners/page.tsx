@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useTranslation } from "@/lib/i18n-context";
+import { useParams } from "next/navigation";
 
 interface PartnerItem {
   id: string;
@@ -20,7 +21,9 @@ interface PartnerItem {
 export default function PartnersPage() {
   const [partners, setPartners] = useState<PartnerItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { t, locale } = useTranslation();
+  const params = useParams();
+  const locale = (params?.locale as string) || "az";
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchPartners = async () => {
