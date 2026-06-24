@@ -64,41 +64,52 @@ export function ProgramsSection() {
               <div key={i} className="bg-card/50 rounded-3xl border border-white/10 h-80 animate-pulse"></div>
             ))
           ) : programs.length > 0 ? (
-            programs.map((program, i) => (
-              <motion.div
-                key={program.id}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="group relative bg-card border border-white/10 rounded-3xl p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full"
-              >
-                {/* Background Decoration */}
-                <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/5 rounded-full blur-[30px] group-hover:bg-primary/10 transition-colors" />
-                
-                {program.image_url ? (
-                  <div className="w-14 h-14 rounded-2xl mb-6 relative z-10 overflow-hidden border border-border">
-                    <img src={program.image_url} alt={program[`title_${locale}`]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  </div>
-                ) : (
-                  <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 relative z-10 group-hover:bg-blue-500 group-hover:text-white text-blue-500 transition-colors duration-300">
-                    <BookOpen className="w-7 h-7" />
-                  </div>
-                )}
-                
-                <h3 className="text-2xl font-bold text-foreground mb-4 relative z-10 group-hover:text-primary transition-colors">
-                  {program[`title_${locale}`]}
-                </h3>
-                
-                <p className="text-muted-foreground line-clamp-4 relative z-10 flex-1 mb-8">
-                  {program[`description_${locale}`]}
-                </p>
+            programs.map((program, i) => {
+              const cardUrl = program.slug ? `/${locale}/programs/${program.slug}` : (program.link || `/${locale}/programs`);
+              const logo = program.logo_url || program.image_url;
+              const shortDesc = program[`short_desc_${locale}`] || program[`description_${locale}`];
+              
+              return (
+                <motion.div
+                  key={program.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1, duration: 0.5 }}
+                  className="h-full"
+                >
+                  <Link
+                    href={cardUrl}
+                    className="group relative bg-card border border-white/10 rounded-3xl p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full cursor-pointer"
+                  >
+                    {/* Background Decoration */}
+                    <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/5 rounded-full blur-[30px] group-hover:bg-primary/10 transition-colors" />
+                    
+                    {logo ? (
+                      <div className="w-14 h-14 rounded-2xl mb-6 relative z-10 overflow-hidden border border-border bg-white flex items-center justify-center p-1">
+                        <img src={logo} alt={program[`title_${locale}`]} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" />
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 relative z-10 group-hover:bg-blue-500 group-hover:text-white text-blue-500 transition-colors duration-300">
+                        <BookOpen className="w-7 h-7" />
+                      </div>
+                    )}
+                    
+                    <h3 className="text-2xl font-bold text-foreground mb-4 relative z-10 group-hover:text-primary transition-colors">
+                      {program[`title_${locale}`]}
+                    </h3>
+                    
+                    <p className="text-muted-foreground line-clamp-4 relative z-10 flex-1 mb-8">
+                      {shortDesc}
+                    </p>
 
-                <Link href={program.link || `/${locale}/programs`} className="inline-flex items-center gap-2 text-sm font-bold text-primary relative z-10 group-hover:text-primary-hover w-max">
-                  Ətraflı Öyrən <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </motion.div>
-            ))
+                    <div className="inline-flex items-center gap-2 text-sm font-bold text-primary relative z-10 group-hover:text-primary-hover w-max">
+                      Ətraflı Öyrən <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </Link>
+                </motion.div>
+              );
+            })
           ) : (
             <div className="col-span-full text-center text-muted-foreground py-10">
               Proqramlar tezliklə əlavə olunacaq.
