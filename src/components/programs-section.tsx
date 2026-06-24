@@ -86,9 +86,15 @@ export function ProgramsSection() {
                 {/* Background Decoration */}
                 <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/5 rounded-full blur-[30px] group-hover:bg-primary/10 transition-colors" />
                 
-                <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 relative z-10 group-hover:bg-blue-500 group-hover:text-white text-blue-500 transition-colors duration-300">
-                  <BookOpen className="w-7 h-7" />
-                </div>
+                {program.image_url ? (
+                  <div className="w-14 h-14 rounded-2xl mb-6 relative z-10 overflow-hidden border border-border">
+                    <img src={program.image_url} alt={program[`title_${locale}`]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  </div>
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 relative z-10 group-hover:bg-blue-500 group-hover:text-white text-blue-500 transition-colors duration-300">
+                    <BookOpen className="w-7 h-7" />
+                  </div>
+                )}
                 
                 <h3 className="text-2xl font-bold text-foreground mb-4 relative z-10 group-hover:text-primary transition-colors">
                   {program[`title_${locale}`]}
