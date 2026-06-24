@@ -126,7 +126,7 @@ export default function AdminCentersPage() {
     setFormData(prev => ({ ...prev, [`${field}_${currentLang}`]: value }));
   };
 
-  const handleGlobalChange = (field: string, value: string) => {
+  const handleGlobalChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
