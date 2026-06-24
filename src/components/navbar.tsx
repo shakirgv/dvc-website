@@ -6,12 +6,14 @@ import { usePathname } from "next/navigation";
 import { Locale } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { MOCK_AUTH } from "@/lib/mock-auth";
+import { useTranslation } from "@/lib/i18n-context";
 
 export function Navbar({ locale }: { locale?: Locale }) {
   const pathname = usePathname();
   const currentLang = locale || "az";
   const [mounted, setMounted] = useState(false);
   const [session, setSession] = useState<any>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     setMounted(true);
@@ -32,29 +34,30 @@ export function Navbar({ locale }: { locale?: Locale }) {
     <header className="sticky top-0 z-50 w-full border-b border-black/5 dark:border-white/10 bg-background/80 backdrop-blur-md">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href={`/${currentLang}`} className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-            <span className="text-white font-bold text-xl">DVC</span>
-          </div>
-          <span className="font-semibold text-xl tracking-tight hidden sm:block text-primary dark:text-primary-neon">
-            Debat
-          </span>
+          <img src="/logo-transparent.png" alt="DVC Logo" className="h-16 md:h-20 w-auto object-contain" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
+          <Link href={`/${currentLang}`} className="text-sm font-medium hover:text-primary transition-colors">
+            {t('navbar.home')}
+          </Link>
           <Link href={`/${currentLang}/about`} className="text-sm font-medium hover:text-primary transition-colors">
-            Haqqımızda
+            {t('navbar.about')}
           </Link>
           <Link href={`/${currentLang}/programs`} className="text-sm font-medium hover:text-primary transition-colors">
-            Proqramlar
+            {t('navbar.projects')}
           </Link>
           <Link href={`/${currentLang}/centers`} className="text-sm font-medium hover:text-primary transition-colors">
-            Mərkəzlər
+            {t('navbar.centers')}
+          </Link>
+          <Link href={`/${currentLang}/partners`} className="text-sm font-medium hover:text-primary transition-colors">
+            {t('footer.partners')}
           </Link>
           <Link href={`/${currentLang}/news`} className="text-sm font-medium hover:text-primary transition-colors">
-            Xəbərlər
+            {t('navbar.news')}
           </Link>
           <Link href={`/${currentLang}/contact`} className="text-sm font-medium hover:text-primary transition-colors">
-            Əlaqə
+            {t('footer.contact')}
           </Link>
         </nav>
 
@@ -72,14 +75,14 @@ export function Navbar({ locale }: { locale?: Locale }) {
               href={`/${currentLang}/dashboard`}
               className="hidden sm:flex px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-full transition-colors shadow-sm"
             >
-              Kabinet
+              {t('navbar.dashboard')}
             </Link>
           ) : (
             <Link 
               href={`/${currentLang}/login`}
               className="hidden sm:flex px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-full transition-colors shadow-sm"
             >
-              Daxil ol
+              {t('navbar.dashboard')}
             </Link>
           )}
         </div>

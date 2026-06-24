@@ -1,122 +1,83 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, Search, Eye, X, Image as ImageIcon, Globe } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
 type Language = "az" | "en" | "ru";
 
-interface NewsItem {
+interface TeamMember {
   id: string;
-  title_az: string; title_en: string; title_ru: string;
-  category_az?: string; category_en?: string; category_ru?: string;
-  excerpt_az: string; excerpt_en: string; excerpt_ru: string;
-  content_az: string; content_en: string; content_ru: string;
+  name: string;
+  role_az: string; role_en: string; role_ru: string;
+  bio_az: string; bio_en: string; bio_ru: string;
   image_url: string;
+  linkedin_url: string;
+  instagram_url: string;
+  facebook_url: string;
+  mail_address: string;
+  order_index: number;
   status: string;
-  views: number;
   created_at: string;
 }
 
-export default function AdminNewsPage() {
-  const [news, setNews] = useState<NewsItem[]>([]);
+export default function AdminTeamPage() {
+  const [members, setMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLang, setCurrentLang] = useState<Language>("az");
   
   // Form State
-  const [formData, setFormData] = useState<Partial<NewsItem>>({});
+  const [formData, setFormData] = useState<Partial<TeamMember>>({});
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    fetchNews();
+    fetchMembers();
   }, []);
 
-  const fetchNews = async () => {
+  const fetchMembers = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from("news")
+    const { data } = await supabase
+      .from("team_members")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("order_index", { ascending: true });
       
     if (data) {
-      setNews(data);
+      setMembers(data);
     }
     setIsLoading(false);
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Bu xəbəri silmək istədiyinizə əminsiniz?")) {
-      const { error } = await supabase.from("news").delete().eq("id", id);
+    if (confirm("Bu şəxsi silmək istədiyinizə əminsiniz?")) {
+      const { error } = await supabase.from("team_members").delete().eq("id", id);
       if (!error) {
-        setNews(news.filter(n => n.id !== id));
+        setMembers(members.filter(m => m.id !== id));
       }
     }
   };
 
-  const handleEdit = (item: NewsItem) => {
-    setFormData(item);
+  const handleEdit = (member: TeamMember) => {
+    setFormData(member);
     setCurrentLang("az");
     setIsModalOpen(true);
   };
 
   const handleCreate = () => {
-    setFormData({
-      title_az: "", title_en: "", title_ru: "",
-      excerpt_az: "", excerpt_en: "", excerpt_ru: "",
-      content_az: "", content_en: "", content_ru: "",
-      image_url: "",
-      status: "Draft",
-      views: 0,
-      created_at: new Date().toISOString()
-    });
+    setFormData({ status: "Active", order_index: 0 });
     setCurrentLang("az");
     setIsModalOpen(true);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.id) {
-      // Update
-      const { data, error } = await supabase
-        .from("news")
-        .update(formData)
-        .eq("id", formData.id)
-        .select();
-      if (data && data.length > 0) {
-        setNews(news.map(n => n.id === formData.id ? data[0] : n));
-      }
-    } else {
-      // Insert
-      const { data, error } = await supabase
-        .from("news")
-        .insert([formData])
-        .select();
-      if (data && data.length > 0) {
-        setNews([data[0], ...news]);
-      }
-    }
-    setIsModalOpen(false);
-  };
-
-  const handleFieldChange = (field: string, value: string) => {
-    // If it's a multi-lang field like "title", we append the current language e.g. "title_az"
-    setFormData(prev => ({ ...prev, [`${field}_${currentLang}`]: value }));
-  };
-
-  const handleGlobalChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
-    
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     setIsUploading(true);
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `team-images/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("dvc_images")
@@ -129,27 +90,68 @@ export default function AdminNewsPage() {
     }
 
     const { data } = supabase.storage.from("dvc_images").getPublicUrl(filePath);
-    if (data?.publicUrl) {
-      setFormData(prev => ({ ...prev, image_url: data.publicUrl }));
-    }
+    handleGlobalChange("image_url", data.publicUrl);
     setIsUploading(false);
   };
 
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Fill empty fields to avoid NOT NULL constraint errors
+    const dataToSave = {
+      ...formData,
+      role_az: formData.role_az || "",
+      role_en: formData.role_en || "",
+      role_ru: formData.role_ru || "",
+      bio_az: formData.bio_az || "",
+      bio_en: formData.bio_en || "",
+      bio_ru: formData.bio_ru || "",
+      linkedin_url: formData.linkedin_url || "",
+      instagram_url: formData.instagram_url || "",
+      facebook_url: formData.facebook_url || "",
+      mail_address: formData.mail_address || "",
+    };
+
+    if (dataToSave.id) {
+      const { data, error } = await supabase.from("team_members").update(dataToSave).eq("id", dataToSave.id).select().single();
+      if (!error && data) {
+        setMembers(members.map(m => m.id === data.id ? data : m));
+        setIsModalOpen(false);
+      } else {
+        alert("Xəta baş verdi: " + error?.message);
+      }
+    } else {
+      const { data, error } = await supabase.from("team_members").insert([dataToSave]).select().single();
+      if (!error && data) {
+        setMembers([...members, data]);
+        setIsModalOpen(false);
+      } else {
+        alert("Xəta baş verdi: " + error?.message);
+      }
+    }
+  };
+
+  const handleGlobalChange = (key: keyof TeamMember, value: any) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleFieldChange = (baseField: "role" | "bio", value: string) => {
+    setFormData(prev => ({ ...prev, [`${baseField}_${currentLang}`]: value }));
+  };
+
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Xəbərlərin İdarəedilməsi</h1>
-          <p className="text-muted-foreground mt-1">Ana səhifədəki xəbərləri əlavə edin, yeniləyin və ya silin.</p>
+          <h2 className="text-3xl font-extrabold text-foreground tracking-tight">Komanda və İdarə Heyəti</h2>
+          <p className="text-muted-foreground mt-1">Ana səhifədəki komanda üzvlərini buradan idarə edə bilərsiniz.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={handleCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary-hover transition-colors whitespace-nowrap"
-          >
-            <Plus className="w-5 h-5" /> Yeni Xəbər
-          </button>
-        </div>
+        <button 
+          onClick={handleCreate}
+          className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-primary/20"
+        >
+          <Plus className="w-5 h-5" /> Yeni Üzv
+        </button>
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm min-h-[300px]">
@@ -159,15 +161,19 @@ export default function AdminNewsPage() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
-                <th className="px-6 py-4 font-medium">Başlıq (AZ)</th>
+                <th className="px-6 py-4 font-medium">Sıra</th>
+                <th className="px-6 py-4 font-medium">Ad / Soyad</th>
+                <th className="px-6 py-4 font-medium">Vəzifə (AZ)</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium text-right">Əməliyyatlar</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {news.map((item) => (
+              {members.map((item) => (
                 <tr key={item.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-6 py-4 font-medium max-w-xs truncate">{item.title_az || "Adı yoxdur"}</td>
+                  <td className="px-6 py-4 font-medium text-muted-foreground">{item.order_index}</td>
+                  <td className="px-6 py-4 font-bold max-w-xs truncate">{item.name || "Adı yoxdur"}</td>
+                  <td className="px-6 py-4 text-muted-foreground">{item.role_az || "-"}</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
                       item.status === "Active" ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
@@ -193,10 +199,10 @@ export default function AdminNewsPage() {
                   </td>
                 </tr>
               ))}
-              {news.length === 0 && (
+              {members.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-6 py-8 text-center text-muted-foreground">
-                    Heç bir xəbər tapılmadı.
+                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                    Heç bir komanda üzvü tapılmadı.
                   </td>
                 </tr>
               )}
@@ -219,42 +225,91 @@ export default function AdminNewsPage() {
                 <X className="w-5 h-5" />
               </button>
               
-              <h3 className="text-2xl font-bold mb-6">{formData.id ? "Xəbəri Redaktə Et" : "Yeni Xəbər Yarat"}</h3>
+              <h3 className="text-2xl font-bold mb-6">{formData.id ? "Üzvü Redaktə Et" : "Yeni Üzv Əlavə Et"}</h3>
               
               <form onSubmit={handleSave} className="space-y-6">
                 
                 {/* GLOBAL SETTINGS */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-2xl border border-border">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase flex justify-between">
-                      <span>Tarix</span>
-                      <button type="button" onClick={() => handleGlobalChange("created_at", new Date().toISOString())} className="text-primary text-xs hover:underline">Bugün</button>
-                    </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-2xl border border-border">
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Ad və Soyad</label>
                     <input 
-                      type="date" 
+                      required
+                      type="text" 
                       className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={formData.created_at ? formData.created_at.split('T')[0] : ""}
-                      onChange={e => {
-                        if (e.target.value) {
-                          handleGlobalChange("created_at", new Date(e.target.value).toISOString());
-                        }
-                      }}
+                      value={formData.name || ""}
+                      onChange={e => handleGlobalChange("name", e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Sıra (Order)</label>
+                    <input 
+                      type="number" 
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={formData.order_index || 0}
+                      onChange={e => handleGlobalChange("order_index", parseInt(e.target.value) || 0)}
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold text-muted-foreground uppercase">Status</label>
                     <select 
                       className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={formData.status || "Draft"}
+                      value={formData.status || "Active"}
                       onChange={e => handleGlobalChange("status", e.target.value)}
                     >
                       <option value="Active">Aktiv (Saytda Göstər)</option>
-                      <option value="Draft">Qaralama (Draft)</option>
+                      <option value="Draft">Qaralama (Gizlət)</option>
                     </select>
                   </div>
-                  <div className="space-y-1.5">
+                  
+                  <div className="space-y-1.5 md:col-span-1">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">LinkedIn URL</label>
+                    <input 
+                      type="url" 
+                      placeholder="https://linkedin.com/in/..."
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={formData.linkedin_url || ""}
+                      onChange={e => handleGlobalChange("linkedin_url", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-1">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Instagram URL</label>
+                    <input 
+                      type="url" 
+                      placeholder="https://instagram.com/..."
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={formData.instagram_url || ""}
+                      onChange={e => handleGlobalChange("instagram_url", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-1">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Facebook URL</label>
+                    <input 
+                      type="url" 
+                      placeholder="https://facebook.com/..."
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={formData.facebook_url || ""}
+                      onChange={e => handleGlobalChange("facebook_url", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-1">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">E-poçt (Mail)</label>
+                    <input 
+                      type="email" 
+                      placeholder="ad.soyad@dvc.az"
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={formData.mail_address || ""}
+                      onChange={e => handleGlobalChange("mail_address", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-2">
                     <label className="text-sm font-bold text-muted-foreground uppercase flex items-center justify-between">
-                      <span>Şəkil (URL və ya Yüklə)</span>
+                      <span>Şəkil URL</span>
                       {isUploading && <span className="text-xs text-primary animate-pulse">Yüklənir...</span>}
                     </label>
                     <div className="flex gap-2">
@@ -293,7 +348,7 @@ export default function AdminNewsPage() {
                       <Globe className="w-4 h-4 inline-block mr-2 -mt-1" />
                       {lang === "az" ? "Azərbaycan" : lang === "en" ? "İngilis" : "Rus"}
                       {currentLang === lang && (
-                        <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
+                        <motion.div layoutId="activeTabTeam" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
                       )}
                     </button>
                   ))}
@@ -308,45 +363,23 @@ export default function AdminNewsPage() {
                   className="space-y-5"
                 >
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Başlıq ({currentLang.toUpperCase()})</label>
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Vəzifə ({currentLang.toUpperCase()})</label>
                     <input 
                       required={currentLang === "az"} 
                       type="text" 
                       className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={(formData as any)[`title_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("title", e.target.value)}
+                      value={(formData as any)[`role_${currentLang}`] || ""}
+                      onChange={e => handleFieldChange("role", e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Kateqoriya ({currentLang.toUpperCase()}) (Boş qalsa 'Yenilik' olacaq)</label>
-                    <input 
-                      type="text" 
-                      placeholder="Məsələn: MDP, Təlim, İnnovasiya..."
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={(formData as any)[`category_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("category", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Qısa Məzmun ({currentLang.toUpperCase()})</label>
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Bioqrafiya ({currentLang.toUpperCase()})</label>
                     <textarea 
-                      required={currentLang === "az"} 
-                      rows={2}
+                      rows={4}
                       className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-                      value={(formData as any)[`excerpt_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("excerpt", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Geniş Məzmun ({currentLang.toUpperCase()})</label>
-                    <textarea 
-                      rows={6}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono text-sm resize-none custom-scrollbar"
-                      value={(formData as any)[`content_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("content", e.target.value)}
+                      value={(formData as any)[`bio_${currentLang}`] || ""}
+                      onChange={e => handleFieldChange("bio", e.target.value)}
                     />
                   </div>
                 </motion.div>

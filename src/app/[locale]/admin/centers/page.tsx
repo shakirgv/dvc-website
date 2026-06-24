@@ -1,61 +1,69 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, Search, Eye, X, Image as ImageIcon, Globe } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import dynamic from "next/dynamic";
+
+const MapPicker = dynamic(() => import("@/components/map-picker"), { ssr: false });
 
 type Language = "az" | "en" | "ru";
 
-interface NewsItem {
+interface CenterItem {
   id: string;
-  title_az: string; title_en: string; title_ru: string;
-  category_az?: string; category_en?: string; category_ru?: string;
-  excerpt_az: string; excerpt_en: string; excerpt_ru: string;
-  content_az: string; content_en: string; content_ru: string;
+  type: string;
+  slug: string;
+  name_az: string; name_en: string; name_ru: string;
+  address_az: string; address_en: string; address_ru: string;
+  description_az: string; description_en: string; description_ru: string;
+  established_year: string;
+  members_count: string;
+  phone: string;
+  email: string;
   image_url: string;
-  status: string;
-  views: number;
+  latitude: number;
+  longitude: number;
   created_at: string;
 }
 
-export default function AdminNewsPage() {
-  const [news, setNews] = useState<NewsItem[]>([]);
+export default function AdminCentersPage() {
+  const [centers, setCenters] = useState<CenterItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLang, setCurrentLang] = useState<Language>("az");
   
   // Form State
-  const [formData, setFormData] = useState<Partial<NewsItem>>({});
+  const [formData, setFormData] = useState<Partial<CenterItem>>({});
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    fetchNews();
+    fetchCenters();
   }, []);
 
-  const fetchNews = async () => {
+  const fetchCenters = async () => {
     setIsLoading(true);
     const { data, error } = await supabase
-      .from("news")
+      .from("centers")
       .select("*")
       .order("created_at", { ascending: false });
       
     if (data) {
-      setNews(data);
+      setCenters(data);
     }
     setIsLoading(false);
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Bu xəbəri silmək istədiyinizə əminsiniz?")) {
-      const { error } = await supabase.from("news").delete().eq("id", id);
+    if (confirm("Bu mərkəzi/klubu silmək istədiyinizə əminsiniz?")) {
+      const { error } = await supabase.from("centers").delete().eq("id", id);
       if (!error) {
-        setNews(news.filter(n => n.id !== id));
+        setCenters(centers.filter(c => c.id !== id));
       }
     }
   };
 
-  const handleEdit = (item: NewsItem) => {
+  const handleEdit = (item: CenterItem) => {
     setFormData(item);
     setCurrentLang("az");
     setIsModalOpen(true);
@@ -63,12 +71,18 @@ export default function AdminNewsPage() {
 
   const handleCreate = () => {
     setFormData({
-      title_az: "", title_en: "", title_ru: "",
-      excerpt_az: "", excerpt_en: "", excerpt_ru: "",
-      content_az: "", content_en: "", content_ru: "",
+      type: "club",
+      slug: "",
+      name_az: "", name_en: "", name_ru: "",
+      address_az: "", address_en: "", address_ru: "",
+      description_az: "", description_en: "", description_ru: "",
+      established_year: "",
+      members_count: "",
+      phone: "",
+      email: "",
       image_url: "",
-      status: "Draft",
-      views: 0,
+      latitude: 40.1431,
+      longitude: 47.5769,
       created_at: new Date().toISOString()
     });
     setCurrentLang("az");
@@ -80,28 +94,35 @@ export default function AdminNewsPage() {
     if (formData.id) {
       // Update
       const { data, error } = await supabase
-        .from("news")
+        .from("centers")
         .update(formData)
         .eq("id", formData.id)
         .select();
+      if (error) {
+        alert("Xəta: " + error.message);
+        return;
+      }
       if (data && data.length > 0) {
-        setNews(news.map(n => n.id === formData.id ? data[0] : n));
+        setCenters(centers.map(c => c.id === formData.id ? data[0] : c));
       }
     } else {
       // Insert
       const { data, error } = await supabase
-        .from("news")
+        .from("centers")
         .insert([formData])
         .select();
+      if (error) {
+        alert("Xəta: " + error.message);
+        return;
+      }
       if (data && data.length > 0) {
-        setNews([data[0], ...news]);
+        setCenters([data[0], ...centers]);
       }
     }
     setIsModalOpen(false);
   };
 
   const handleFieldChange = (field: string, value: string) => {
-    // If it's a multi-lang field like "title", we append the current language e.g. "title_az"
     setFormData(prev => ({ ...prev, [`${field}_${currentLang}`]: value }));
   };
 
@@ -139,15 +160,15 @@ export default function AdminNewsPage() {
     <div>
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Xəbərlərin İdarəedilməsi</h1>
-          <p className="text-muted-foreground mt-1">Ana səhifədəki xəbərləri əlavə edin, yeniləyin və ya silin.</p>
+          <h1 className="text-3xl font-bold">Mərkəzlər və Klublar</h1>
+          <p className="text-muted-foreground mt-1">Sistemdəki bütün DVC Regional Mərkəzləri və Debat Klublarının idarəolunması.</p>
         </div>
         <div className="flex items-center gap-4">
           <button 
             onClick={handleCreate}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary-hover transition-colors whitespace-nowrap"
           >
-            <Plus className="w-5 h-5" /> Yeni Xəbər
+            <Plus className="w-5 h-5" /> Yeni Əlavə Et
           </button>
         </div>
       </div>
@@ -159,22 +180,24 @@ export default function AdminNewsPage() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
-                <th className="px-6 py-4 font-medium">Başlıq (AZ)</th>
-                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 font-medium">Adı (AZ)</th>
+                <th className="px-6 py-4 font-medium">Tipi</th>
+                <th className="px-6 py-4 font-medium">Slug</th>
                 <th className="px-6 py-4 font-medium text-right">Əməliyyatlar</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {news.map((item) => (
+              {centers.map((item) => (
                 <tr key={item.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-6 py-4 font-medium max-w-xs truncate">{item.title_az || "Adı yoxdur"}</td>
+                  <td className="px-6 py-4 font-medium">{item.name_az || "Adı yoxdur"}</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      item.status === "Active" ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
+                      item.type === "club" ? "bg-blue-500/10 text-blue-600" : "bg-purple-500/10 text-purple-600"
                     }`}>
-                      {item.status === "Active" ? "Aktiv" : "Qaralama"}
+                      {item.type === "club" ? "Klub" : "Regional Mərkəz"}
                     </span>
                   </td>
+                  <td className="px-6 py-4 font-mono text-muted-foreground">{item.slug}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-2">
                       <button 
@@ -193,10 +216,10 @@ export default function AdminNewsPage() {
                   </td>
                 </tr>
               ))}
-              {news.length === 0 && (
+              {centers.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-6 py-8 text-center text-muted-foreground">
-                    Heç bir xəbər tapılmadı.
+                  <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
+                    Heç bir məlumat tapılmadı.
                   </td>
                 </tr>
               )}
@@ -213,48 +236,43 @@ export default function AdminNewsPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-3xl bg-card border border-border rounded-3xl shadow-2xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar"
+              className="w-full max-w-4xl bg-card border border-border rounded-3xl shadow-2xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar"
             >
               <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted text-muted-foreground">
                 <X className="w-5 h-5" />
               </button>
               
-              <h3 className="text-2xl font-bold mb-6">{formData.id ? "Xəbəri Redaktə Et" : "Yeni Xəbər Yarat"}</h3>
+              <h3 className="text-2xl font-bold mb-6">{formData.id ? "Məlumatı Redaktə Et" : "Yeni Mərkəz/Klub Yarat"}</h3>
               
               <form onSubmit={handleSave} className="space-y-6">
                 
                 {/* GLOBAL SETTINGS */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-2xl border border-border">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-2xl border border-border">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase flex justify-between">
-                      <span>Tarix</span>
-                      <button type="button" onClick={() => handleGlobalChange("created_at", new Date().toISOString())} className="text-primary text-xs hover:underline">Bugün</button>
-                    </label>
-                    <input 
-                      type="date" 
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={formData.created_at ? formData.created_at.split('T')[0] : ""}
-                      onChange={e => {
-                        if (e.target.value) {
-                          handleGlobalChange("created_at", new Date(e.target.value).toISOString());
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Status</label>
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Tipi</label>
                     <select 
                       className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={formData.status || "Draft"}
-                      onChange={e => handleGlobalChange("status", e.target.value)}
+                      value={formData.type || "club"}
+                      onChange={e => handleGlobalChange("type", e.target.value)}
                     >
-                      <option value="Active">Aktiv (Saytda Göstər)</option>
-                      <option value="Draft">Qaralama (Draft)</option>
+                      <option value="club">Debat Klubu</option>
+                      <option value="regional">Regional Mərkəz</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">URL Slug (Unikal)</label>
+                    <input 
+                      required
+                      type="text" 
+                      placeholder="meselen: asoiu-debat"
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
+                      value={formData.slug || ""}
+                      onChange={e => handleGlobalChange("slug", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
                     <label className="text-sm font-bold text-muted-foreground uppercase flex items-center justify-between">
-                      <span>Şəkil (URL və ya Yüklə)</span>
+                      <span>Loqo / Şəkil</span>
                       {isUploading && <span className="text-xs text-primary animate-pulse">Yüklənir...</span>}
                     </label>
                     <div className="flex gap-2">
@@ -276,6 +294,80 @@ export default function AdminNewsPage() {
                         />
                       </label>
                     </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Yaranma İli</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={formData.established_year || ""}
+                      onChange={e => handleGlobalChange("established_year", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Üzv Sayı</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={formData.members_count || ""}
+                      onChange={e => handleGlobalChange("members_count", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Telefon</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={formData.phone || ""}
+                      onChange={e => handleGlobalChange("phone", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">E-poçt</label>
+                    <input 
+                      type="email" 
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={formData.email || ""}
+                      onChange={e => handleGlobalChange("email", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Xəritə Koordinatları */}
+                <div className="space-y-4 pt-4 border-t border-border">
+                  <h3 className="text-sm font-bold text-muted-foreground uppercase">Xəritə Koordinatları</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-muted-foreground uppercase">Enlik (Latitude)</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={formData.latitude || ""}
+                        onChange={e => handleGlobalChange("latitude", parseFloat(e.target.value))}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-muted-foreground uppercase">Uzunluq (Longitude)</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={formData.longitude || ""}
+                        onChange={e => handleGlobalChange("longitude", parseFloat(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-xs text-muted-foreground mb-2">Mərkəzin yerləşdiyi konumu dəqiqləşdirmək üçün xəritə üzərində klikləyə bilərsiniz.</p>
+                    <MapPicker 
+                      lat={formData.latitude || 40.1431} 
+                      lng={formData.longitude || 47.5769} 
+                      onChange={(lat, lng) => {
+                        handleGlobalChange("latitude", lat);
+                        handleGlobalChange("longitude", lng);
+                      }} 
+                    />
                   </div>
                 </div>
 
@@ -308,45 +400,33 @@ export default function AdminNewsPage() {
                   className="space-y-5"
                 >
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Başlıq ({currentLang.toUpperCase()})</label>
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Mərkəzin / Klubun Adı ({currentLang.toUpperCase()})</label>
                     <input 
                       required={currentLang === "az"} 
                       type="text" 
                       className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={(formData as any)[`title_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("title", e.target.value)}
+                      value={(formData as any)[`name_${currentLang}`] || ""}
+                      onChange={e => handleFieldChange("name", e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Kateqoriya ({currentLang.toUpperCase()}) (Boş qalsa 'Yenilik' olacaq)</label>
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Ünvan ({currentLang.toUpperCase()})</label>
                     <input 
                       type="text" 
-                      placeholder="Məsələn: MDP, Təlim, İnnovasiya..."
                       className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={(formData as any)[`category_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("category", e.target.value)}
+                      value={(formData as any)[`address_${currentLang}`] || ""}
+                      onChange={e => handleFieldChange("address", e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Qısa Məzmun ({currentLang.toUpperCase()})</label>
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Haqqında / Təsvir ({currentLang.toUpperCase()})</label>
                     <textarea 
-                      required={currentLang === "az"} 
-                      rows={2}
+                      rows={4}
                       className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-                      value={(formData as any)[`excerpt_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("excerpt", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Geniş Məzmun ({currentLang.toUpperCase()})</label>
-                    <textarea 
-                      rows={6}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono text-sm resize-none custom-scrollbar"
-                      value={(formData as any)[`content_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("content", e.target.value)}
+                      value={(formData as any)[`description_${currentLang}`] || ""}
+                      onChange={e => handleFieldChange("description", e.target.value)}
                     />
                   </div>
                 </motion.div>

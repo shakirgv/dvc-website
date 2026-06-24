@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname, useParams } from "next/navigation";
 import { MOCK_AUTH } from "@/lib/mock-auth";
 import Link from "next/link";
-import { LayoutDashboard, Newspaper, Folders, Video, LogOut, Settings } from "lucide-react";
+import { LayoutDashboard, Newspaper, Folders, Video, LogOut, Settings, MapPin, Users, Handshake, BarChart, BookOpen } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -36,9 +36,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const menuItems = [
     { href: `/${locale}/admin`, icon: LayoutDashboard, label: "Statistika" },
     { href: `/${locale}/admin/news`, icon: Newspaper, label: "Xəbərlər" },
-    { href: `/${locale}/admin/projects`, icon: Folders, label: "Layihələr və Müraciətlər" },
+    { href: `/${locale}/admin/centers`, icon: MapPin, label: "Mərkəzlər və Klublar" },
+    { href: `/${locale}/admin/team`, icon: Users, label: "İdarə Heyəti" },
+    { href: `/${locale}/admin/programs`, icon: BookOpen, label: "Proqramlar" },
+    { href: `/${locale}/admin/projects`, icon: Folders, label: "Layihələr" },
     { href: `/${locale}/admin/projects/builder`, icon: Settings, label: "Form Builder" },
     { href: `/${locale}/admin/rooms`, icon: Video, label: "Debat Otaqları" },
+    { href: `/${locale}/admin/partners`, icon: Handshake, label: "Tərəfdaşlar" },
+    { href: `/${locale}/admin/stats`, icon: BarChart, label: "Ana Səhifə Sayğacları" },
   ];
 
   return (

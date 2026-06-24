@@ -6,6 +6,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Locale } from "@/lib/i18n";
+import { TranslationProvider } from "@/lib/i18n-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,12 @@ export default async function RootLayout({
   params: Promise<{ locale: string }>;
 }>) {
   const { locale } = await params;
+  let dict = {};
+  try {
+    dict = (await import(`@/i18n/dictionaries/${locale}.json`)).default;
+  } catch (e) {
+    dict = (await import(`@/i18n/dictionaries/az.json`)).default;
+  }
   
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -46,12 +53,14 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Navbar locale={locale as Locale} />
-          <main className="flex-1 flex flex-col">
-            {children}
-          </main>
-          <Footer />
-          <ScrollToTop />
+          <TranslationProvider dictionary={dict}>
+            <Navbar locale={locale as Locale} />
+            <main className="flex-1 flex flex-col">
+              {children}
+            </main>
+            <Footer />
+            <ScrollToTop />
+          </TranslationProvider>
         </ThemeProvider>
       </body>
     </html>

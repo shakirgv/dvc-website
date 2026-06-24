@@ -1,53 +1,38 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Search, Eye, X } from "lucide-react";
+import { CheckCircle, XCircle, Search, Eye, X, Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminProjectsPage() {
   const [applications, setApplications] = useState<any[]>([]);
   const [selectedApp, setSelectedApp] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load from local storage to sync with the user's dashboard
+  const fetchApps = async () => {
+    setIsLoading(true);
+    const { data } = await supabase.from("applications").select("*, projects(title_az)").order("created_at", { ascending: false });
+    if (data) {
+      setApplications(data);
+    }
+    setIsLoading(false);
+  };
+
   useEffect(() => {
-    const fetchApps = () => {
-      const sessionData = localStorage.getItem("dvc-mock-session");
-      if (sessionData) {
-        const parsed = JSON.parse(sessionData);
-        if (parsed.applications) {
-          // We attach the mock user info to the apps for admin view
-          const appsWithUser = parsed.applications.map((app: any) => ({
-            ...app,
-            userId: parsed.id,
-            userName: `${parsed.firstName} ${parsed.lastName}`,
-            userEmail: parsed.email
-          }));
-          setApplications(appsWithUser);
-        }
-      }
-    };
-    
     fetchApps();
-    // Listen for storage changes if in another tab
-    window.addEventListener('storage', fetchApps);
-    return () => window.removeEventListener('storage', fetchApps);
   }, []);
 
-  const handleStatusChange = (appId: number, newStatus: "Approved" | "Rejected") => {
-    const updatedApps = applications.map(app => 
+  const handleStatusChange = async (appId: string, newStatus: "Approved" | "Rejected") => {
+    // Optimistic UI update
+    setApplications(applications.map(app => 
       app.id === appId ? { ...app, status: newStatus } : app
-    );
-    setApplications(updatedApps);
+    ));
 
-    // Sync back to local storage (Simulating DB update)
-    const sessionData = localStorage.getItem("dvc-mock-session");
-    if (sessionData) {
-      const parsed = JSON.parse(sessionData);
-      const userApps = parsed.applications.map((app: any) => 
-        app.id === appId ? { ...app, status: newStatus } : app
-      );
-      parsed.applications = userApps;
-      localStorage.setItem("dvc-mock-session", JSON.stringify(parsed));
+    const { error } = await supabase.from("applications").update({ status: newStatus }).eq("id", appId);
+    if (error) {
+      alert("Xəta baş verdi: " + error.message);
+      fetchApps(); // revert
     }
   };
 
@@ -81,21 +66,28 @@ export default function AdminProjectsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {applications.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary mb-4" />
+                    Məlumatlar yüklənir...
+                  </td>
+                </tr>
+              ) : applications.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
-                    Hələlik heç bir müraciət tapılmadı. (İstifadəçi panelindən test üçün yeni müraciət yaradın)
+                    Hələlik heç bir müraciət tapılmadı.
                   </td>
                 </tr>
               ) : (
                 applications.map((app) => (
                   <tr key={app.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-medium text-foreground">{app.userName}</div>
-                      <div className="text-xs text-muted-foreground">{app.userId}</div>
+                      <div className="font-medium text-foreground">{app.user_name}</div>
+                      <div className="text-xs text-muted-foreground">{app.user_id}</div>
                     </td>
-                    <td className="px-6 py-4 font-medium">{app.name}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{app.date}</td>
+                    <td className="px-6 py-4 font-medium">{app.projects?.title_az}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{new Date(app.created_at).toLocaleDateString('az-AZ')}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
                         app.status === "Pending" ? "bg-yellow-500/10 text-yellow-600" :
@@ -163,14 +155,14 @@ export default function AdminProjectsPage() {
               <div className="space-y-4 mb-8">
                 <div className="p-4 bg-muted/30 rounded-xl border border-border">
                   <h4 className="text-xs font-bold text-muted-foreground uppercase mb-2">İştirakçı</h4>
-                  <p className="font-medium">{selectedApp.userName}</p>
-                  <p className="text-sm text-muted-foreground">{selectedApp.userEmail}</p>
+                  <p className="font-medium">{selectedApp.user_name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedApp.user_email}</p>
                 </div>
 
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-muted-foreground uppercase">Form Cavabları</h4>
-                  {selectedApp.responses ? (
-                    Object.entries(selectedApp.responses).map(([key, val]: any) => (
+                  {selectedApp.answers && Object.keys(selectedApp.answers).length > 0 ? (
+                    Object.entries(selectedApp.answers).map(([key, val]: any) => (
                       <div key={key} className="p-3 bg-card border border-border rounded-lg">
                         <span className="text-xs text-muted-foreground block mb-1">Sual ID: {key}</span>
                         <p className="font-medium text-sm">{val}</p>

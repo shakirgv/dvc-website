@@ -1,30 +1,43 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Save, GripVertical, Settings } from "lucide-react";
+import { Plus, Trash2, Save, GripVertical, Settings, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/lib/supabase";
+
+type Language = "az" | "en" | "ru";
 
 type FieldType = "text" | "textarea" | "select";
 
 interface FormField {
   id: string;
-  label: string;
+  label_az: string; label_en: string; label_ru: string;
   type: FieldType;
   required: boolean;
-  options?: string[]; // For select type
+  options_az?: string[]; options_en?: string[]; options_ru?: string[];
 }
 
 export default function AdminFormBuilderPage() {
-  const [formName, setFormName] = useState("Yeni Müraciət Formu");
+  const [currentLang, setCurrentLang] = useState<Language>("az");
+  
+  // Project settings
+  const [projectData, setProjectData] = useState({
+    title_az: "Yeni Layihə", title_en: "", title_ru: "",
+    description_az: "", description_en: "", description_ru: "",
+    slug: "",
+    image_url: "",
+    status: "Active"
+  });
+
   const [fields, setFields] = useState<FormField[]>([
-    { id: "field_1", label: "Adınız və Soyadınız", type: "text", required: true },
-    { id: "field_2", label: "Motivasiya məktubunuz", type: "textarea", required: true }
+    { id: "field_1", label_az: "Adınız və Soyadınız", label_en: "Full Name", label_ru: "ФИО", type: "text", required: true },
+    { id: "field_2", label_az: "Motivasiya məktubunuz", label_en: "Motivation letter", label_ru: "Мотивационное письмо", type: "textarea", required: true }
   ]);
 
   const addField = () => {
     const newField: FormField = {
       id: `field_${Date.now()}`,
-      label: "Yeni Sual",
+      label_az: "Yeni Sual", label_en: "", label_ru: "",
       type: "text",
       required: false
     };
@@ -39,15 +52,24 @@ export default function AdminFormBuilderPage() {
     setFields(fields.map(f => f.id === id ? { ...f, ...updates } : f));
   };
 
-  const handleSave = () => {
-    const outputJSON = JSON.stringify({
-      formName,
-      fields
-    }, null, 2);
-    
-    // Simulate saving
-    alert("Form yadda saxlanıldı!\n\nGenerasiya edilən JSON (Konsola baxın):");
-    console.log(outputJSON);
+  const handleSave = async () => {
+    if (!projectData.slug) {
+      alert("Layihə üçün 'Slug' daxil edilməlidir!");
+      return;
+    }
+
+    const payload = {
+      ...projectData,
+      form_schema: { fields }
+    };
+
+    const { data, error } = await supabase.from("projects").insert([payload]);
+    if (error) {
+      alert("Xəta baş verdi: " + error.message);
+    } else {
+      alert("Layihə və form uğurla bazaya əlavə edildi!");
+      console.log(payload);
+    }
   };
 
   return (
@@ -68,13 +90,60 @@ export default function AdminFormBuilderPage() {
           </button>
         </div>
 
+        <div className="bg-card border border-border rounded-3xl p-6 shadow-sm mb-6 space-y-6">
+          <div className="border-b border-border flex gap-4">
+            {(["az", "en", "ru"] as Language[]).map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => setCurrentLang(lang)}
+                className={`pb-3 px-4 font-bold text-sm uppercase transition-colors relative ${
+                  currentLang === lang ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Globe className="w-4 h-4 inline-block mr-2 -mt-1" />
+                {lang === "az" ? "Azərbaycan" : lang === "en" ? "İngilis" : "Rus"}
+                {currentLang === lang && (
+                  <motion.div layoutId="activeLangTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold text-muted-foreground uppercase">Layihə Adı ({currentLang.toUpperCase()})</label>
+              <input 
+                type="text" 
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                value={(projectData as any)[`title_${currentLang}`]}
+                onChange={(e) => setProjectData({...projectData, [`title_${currentLang}`]: e.target.value})}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold text-muted-foreground uppercase">URL Slug</label>
+              <input 
+                type="text" 
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
+                value={projectData.slug}
+                onChange={(e) => setProjectData({...projectData, slug: e.target.value})}
+                placeholder="meselen: layihe-2026"
+              />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-sm font-bold text-muted-foreground uppercase">Təsvir ({currentLang.toUpperCase()})</label>
+              <textarea 
+                rows={3}
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                value={(projectData as any)[`description_${currentLang}`]}
+                onChange={(e) => setProjectData({...projectData, [`description_${currentLang}`]: e.target.value})}
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="bg-card border border-border rounded-3xl p-6 shadow-sm mb-6">
-          <input 
-            type="text" 
-            className="w-full text-2xl font-bold bg-transparent border-b-2 border-transparent hover:border-border focus:border-primary focus:outline-none transition-colors pb-2 mb-8"
-            value={formName}
-            onChange={(e) => setFormName(e.target.value)}
-          />
+          <h2 className="text-xl font-bold mb-6">Dinamik Suallar</h2>
 
           <div className="space-y-4">
             <AnimatePresence>
@@ -93,12 +162,12 @@ export default function AdminFormBuilderPage() {
                   <div className="flex-1 space-y-4">
                     <div className="flex flex-col sm:flex-row gap-4">
                       <div className="flex-1 space-y-1.5">
-                        <label className="text-xs font-bold text-muted-foreground uppercase">Sual (Label)</label>
+                        <label className="text-xs font-bold text-muted-foreground uppercase">Sual (Label - {currentLang.toUpperCase()})</label>
                         <input 
                           type="text" 
                           className="w-full bg-background border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          value={field.label}
-                          onChange={(e) => updateField(field.id, { label: e.target.value })}
+                          value={(field as any)[`label_${currentLang}`] || ""}
+                          onChange={(e) => updateField(field.id, { [`label_${currentLang}`]: e.target.value })}
                         />
                       </div>
                       <div className="w-full sm:w-48 space-y-1.5">
@@ -129,13 +198,13 @@ export default function AdminFormBuilderPage() {
 
                     {field.type === "select" && (
                       <div className="space-y-1.5 pt-2 border-t border-border">
-                        <label className="text-xs font-bold text-muted-foreground uppercase">Seçimlər (Vergüllə ayırın)</label>
+                        <label className="text-xs font-bold text-muted-foreground uppercase">Seçimlər ({currentLang.toUpperCase()}) (Vergüllə ayırın)</label>
                         <input 
                           type="text" 
                           placeholder="Məs: Bəli, Xeyr, Bəlkə"
                           className="w-full bg-background border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          value={field.options?.join(", ") || ""}
-                          onChange={(e) => updateField(field.id, { options: e.target.value.split(",").map(s => s.trim()) })}
+                          value={((field as any)[`options_${currentLang}`] || []).join(", ")}
+                          onChange={(e) => updateField(field.id, { [`options_${currentLang}`]: e.target.value.split(",").map(s => s.trim()) })}
                         />
                       </div>
                     )}
@@ -165,11 +234,11 @@ export default function AdminFormBuilderPage() {
       <div className="w-full lg:w-80 shrink-0">
         <div className="bg-zinc-900 rounded-3xl p-6 shadow-xl sticky top-24 text-zinc-300">
           <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-            <Settings className="w-5 h-5 text-zinc-400" /> JSON Nəticə (Output)
+            <Settings className="w-5 h-5 text-zinc-400" /> JSON Nəticə (Daxili)
           </h3>
-          <p className="text-xs text-zinc-500 mb-4">Məlumat bazasına bu formatda yazılacaq:</p>
-          <pre className="text-xs font-mono bg-black/50 p-4 rounded-xl overflow-x-auto border border-zinc-800">
-            {JSON.stringify({ formName, fields }, null, 2)}
+          <p className="text-xs text-zinc-500 mb-4">Bazaya bu strukturla yazılır:</p>
+          <pre className="text-xs font-mono bg-black/50 p-4 rounded-xl overflow-x-auto border border-zinc-800 h-[600px]">
+            {JSON.stringify({ ...projectData, form_schema: { fields } }, null, 2)}
           </pre>
         </div>
       </div>

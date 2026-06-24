@@ -4,44 +4,18 @@ import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { MOCK_AUTH } from "@/lib/mock-auth";
-import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, Camera, Plus, X, BookOpen, File as FileIcon, Bot, Zap, Users, Trophy, QrCode, History } from "lucide-react";
+import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, Camera, Plus, X, BookOpen, File as FileIcon, Bot, Zap, Users, Trophy, QrCode, History, Loader2 } from "lucide-react";
 import Link from "next/link";
-
-const ACTIVE_PROJECTS = [
-  { 
-    id: "mdp-2026", 
-    name: "Milli Debat Forumu 2026", 
-    desc: "İllik ən böyük debat turniri",
-    formFields: [
-      { id: "format", label: "Hansı debat formatında çıxış edirsiniz?", type: "text", required: true },
-      { id: "team", label: "Komandanızın adı (əgər varsa)", type: "text", required: false },
-      { id: "expectations", label: "Bu forumdan gözləntiniz nədir?", type: "textarea", required: true }
-    ]
-  },
-  { 
-    id: "youth-inc", 
-    name: "Youth INC İnkubasiya Proqramı", 
-    desc: "Gənc sahibkarlar üçün dəstək",
-    formFields: [
-      { id: "industry", label: "Biznes ideyanız hansı sahəni əhatə edir?", type: "text", required: true },
-      { id: "idea_desc", label: "İdeyanız barədə qısa məlumat", type: "textarea", required: true },
-      { id: "expectations", label: "İnkubasiya proqramından nə gözləyirsiniz?", type: "textarea", required: true }
-    ]
-  },
-  { 
-    id: "summer-camp", 
-    name: "DVC Yay Düşərgəsi", 
-    desc: "Gənclər üçün 1 həftəlik intensiv düşərgə",
-    formFields: [
-      { id: "experience", label: "Əvvəllər düşərgələrdə iştirak etmisinizmi?", type: "text", required: true }
-    ]
-  }
-];
+import { supabase } from "@/lib/supabase";
+import { useTranslation } from "@/lib/i18n-context";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [session, setSession] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("profile");
+  const [activeProjects, setActiveProjects] = useState<any[]>([]);
+  const [isLoadingApps, setIsLoadingApps] = useState(false);
   
   // Profile Edit State
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -49,9 +23,7 @@ export default function DashboardPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Applications State
-  const [applications, setApplications] = useState([
-    { id: 1, name: "Milli Debat Proqramı 2025", date: "15 May, 2025", status: "Approved" }
-  ]);
+  const [applications, setApplications] = useState<any[]>([]);
   const [isNewAppModalOpen, setIsNewAppModalOpen] = useState(false);
   const [selectedProjectForApp, setSelectedProjectForApp] = useState<any>(null);
   const [applicationFormData, setApplicationFormData] = useState<any>({});
@@ -69,11 +41,29 @@ export default function DashboardPage() {
         region: userSession.region || "",
         avatar: userSession.avatar || null
       });
-      if (userSession.applications) {
-        setApplications(userSession.applications);
-      }
+      fetchData(userSession.id);
     }
   }, [router]);
+
+  const fetchData = async (userId: string) => {
+    setIsLoadingApps(true);
+    // Fetch active projects
+    const { data: projData } = await supabase.from("projects").select("*").eq("status", "Active");
+    if (projData) setActiveProjects(projData);
+
+    // Fetch user applications
+    const { data: appData } = await supabase.from("applications").select(`*, projects(title_az)`).eq("user_id", userId).order("created_at", { ascending: false });
+    if (appData) {
+      setApplications(appData.map(a => ({
+        id: a.id,
+        name: a.projects?.title_az || "Layihə",
+        project_id: a.project_id,
+        date: new Date(a.created_at).toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' }),
+        status: a.status
+      })));
+    }
+    setIsLoadingApps(false);
+  };
 
   const handleLogout = () => {
     MOCK_AUTH.logout();
@@ -103,27 +93,29 @@ export default function DashboardPage() {
     setApplicationFormData({});
   };
 
-  const submitApplication = (e: React.FormEvent) => {
+  const submitApplication = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProjectForApp) return;
 
-    const newApp = {
-      id: Date.now(),
-      name: selectedProjectForApp.name,
-      date: new Date().toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' }),
-      status: "Pending",
-      responses: applicationFormData
+    const payload = {
+      project_id: selectedProjectForApp.id,
+      user_name: `${session.firstName} ${session.lastName}`,
+      user_email: session.email,
+      user_id: session.id,
+      answers: applicationFormData,
+      status: "Pending"
     };
-    const updatedApps = [newApp, ...applications];
-    setApplications(updatedApps);
-    
-    // Save to mock session
-    const updatedSession = { ...session, applications: updatedApps };
-    setSession(updatedSession);
-    localStorage.setItem("dvc-mock-session", JSON.stringify(updatedSession));
-    
+
+    const { error } = await supabase.from("applications").insert([payload]);
+    if (error) {
+      alert("Müraciət göndərilərkən xəta baş verdi: " + error.message);
+      return;
+    }
+
+    alert("Müraciətiniz uğurla göndərildi!");
     setIsNewAppModalOpen(false);
     setSelectedProjectForApp(null);
+    fetchData(session.id); // Refresh
   };
 
   if (!session) return <div className="min-h-screen flex items-center justify-center">Yüklənir...</div>;
@@ -298,7 +290,11 @@ export default function DashboardPage() {
                     </button>
                   </div>
 
-                  {applications.length === 0 ? (
+                  {isLoadingApps ? (
+                    <div className="flex justify-center items-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                  ) : applications.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">Heç bir müraciət tapılmadı.</div>
                   ) : (
                     <div className="space-y-4">
@@ -485,13 +481,14 @@ export default function DashboardPage() {
                   <p className="text-muted-foreground mb-6">Qoşulmaq istədiyiniz proqramı seçin.</p>
                   
                   <div className="space-y-3">
-                    {ACTIVE_PROJECTS.map(project => {
-                      const hasApplied = applications.some(a => a.name === project.name);
+                    {activeProjects.map(project => {
+                      const title = project.title_az; // AZ as fallback for now
+                      const hasApplied = applications.some(a => a.project_id === project.id);
                       return (
                         <div key={project.id} className="p-4 rounded-xl border border-border flex items-center justify-between gap-4">
                           <div>
-                            <h4 className="font-bold">{project.name}</h4>
-                            <p className="text-xs text-muted-foreground mt-1">{project.desc}</p>
+                            <h4 className="font-bold">{title}</h4>
+                            <p className="text-xs text-muted-foreground mt-1">{project.description_az}</p>
                           </div>
                           <button 
                             disabled={hasApplied}
@@ -505,19 +502,22 @@ export default function DashboardPage() {
                         </div>
                       );
                     })}
+                    {activeProjects.length === 0 && (
+                      <div className="text-muted-foreground text-sm">Hal-hazırda aktiv müraciət layihəsi yoxdur.</div>
+                    )}
                   </div>
                 </>
               ) : (
                 <>
                   <button onClick={() => setSelectedProjectForApp(null)} className="text-sm font-medium text-primary hover:underline mb-4 inline-block">&larr; Siyahıya qayıt</button>
-                  <h3 className="text-xl font-bold mb-1">{selectedProjectForApp.name}</h3>
+                  <h3 className="text-xl font-bold mb-1">{selectedProjectForApp.title_az}</h3>
                   <p className="text-muted-foreground text-sm mb-6">Zəhmət olmasa aşağıdakı müraciət formunu doldurun.</p>
                   
                   <form onSubmit={submitApplication} className="space-y-4">
-                    {selectedProjectForApp.formFields?.map((field: any) => (
+                    {selectedProjectForApp.form_schema?.fields?.map((field: any) => (
                       <div key={field.id} className="space-y-1.5">
                         <label className="text-sm font-medium">
-                          {field.label} {field.required && <span className="text-red-500">*</span>}
+                          {field.label_az} {field.required && <span className="text-red-500">*</span>}
                         </label>
                         {field.type === "textarea" ? (
                           <textarea
@@ -527,6 +527,18 @@ export default function DashboardPage() {
                             value={applicationFormData[field.id] || ""}
                             onChange={(e) => setApplicationFormData({...applicationFormData, [field.id]: e.target.value})}
                           />
+                        ) : field.type === "select" ? (
+                          <select
+                            required={field.required}
+                            className="w-full border border-border rounded-lg p-2.5 bg-background focus:ring-2 focus:ring-primary/50 outline-none"
+                            value={applicationFormData[field.id] || ""}
+                            onChange={(e) => setApplicationFormData({...applicationFormData, [field.id]: e.target.value})}
+                          >
+                            <option value="">-- Seçin --</option>
+                            {field.options_az?.map((opt: string) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
                         ) : (
                           <input
                             required={field.required}
