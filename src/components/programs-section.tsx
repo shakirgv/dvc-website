@@ -56,16 +56,6 @@ export function ProgramsSection() {
               {t("programs.title") || "Proqramlar və Layihələr"}
             </motion.h2>
           </div>
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
-            <Link href={`/${locale}/programs`} className="inline-flex items-center gap-2 text-foreground font-bold hover:text-primary transition-colors">
-              Bütün Proqramlar <ArrowRight className="w-5 h-5" />
-            </Link>
-          </motion.div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
