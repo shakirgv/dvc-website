@@ -5,11 +5,28 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "@/lib/i18n-context";
 import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export function AboutSection() {
   const { t } = useTranslation();
   const params = useParams();
   const locale = (params?.locale as string) || "az";
+
+  const [stats, setStats] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      const { data } = await supabase
+        .from("home_stats")
+        .select("*")
+        .order("order_index", { ascending: true });
+      if (data) {
+        setStats(data);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const features = [
     t("about.feature_1") || "Gənclərin İnkişafı",
@@ -44,11 +61,20 @@ export function AboutSection() {
                 alt="About DVC" 
                 className="w-full h-full object-cover"
               />
-              <div className="absolute bottom-8 left-8 z-20">
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl">
-                  <div className="text-4xl font-extrabold text-white mb-1">25+</div>
-                  <div className="text-white/80 font-medium">İl Təcrübə</div>
-                </div>
+              <div className="absolute bottom-8 left-8 right-8 z-20 flex flex-wrap gap-4">
+                {stats.length > 0 ? (
+                  stats.map((stat) => (
+                    <div key={stat.id} className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl flex-1 min-w-[120px] max-w-[200px]">
+                      <div className="text-3xl md:text-4xl font-extrabold text-white mb-1">{stat.stat_value}</div>
+                      <div className="text-white/80 font-medium text-sm md:text-base">{stat[`label_${locale}`]}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl">
+                    <div className="text-4xl font-extrabold text-white mb-1">25+</div>
+                    <div className="text-white/80 font-medium">İl Təcrübə</div>
+                  </div>
+                )}
               </div>
             </div>
             

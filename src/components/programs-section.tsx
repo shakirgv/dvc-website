@@ -66,7 +66,7 @@ export function ProgramsSection() {
           ) : programs.length > 0 ? (
             programs.map((program, i) => {
               const cardUrl = program.slug ? `/${locale}/programs/${program.slug}` : (program.link || `/${locale}/programs`);
-              const logo = program.logo_url || program.image_url;
+              const logo = program.logo_url;
               const shortDesc = program[`short_desc_${locale}`] || program[`description_${locale}`];
               
               return (
