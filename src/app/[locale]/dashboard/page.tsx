@@ -39,6 +39,13 @@ export default function DashboardPage() {
   // Password Update State
   const [passwordData, setPasswordData] = useState({ newPassword: "", confirmPassword: "" });
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordUpdateSuccess, setPasswordUpdateSuccess] = useState(false);
+
+  // Delete Account State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const supabase = createClient();
 
@@ -161,15 +168,54 @@ export default function DashboardPage() {
     if (passwordData.newPassword !== passwordData.confirmPassword) return alert("Şifrələr uyğun gəlmir.");
     
     setIsUpdatingPassword(true);
+    setPasswordUpdateSuccess(false);
     const { error } = await supabase.auth.updateUser({ password: passwordData.newPassword });
     setIsUpdatingPassword(false);
 
     if (error) {
       alert("Şifrə yenilənərkən xəta baş verdi: " + error.message);
     } else {
-      alert("Şifrəniz uğurla yeniləndi!");
+      setPasswordUpdateSuccess(true);
       setPasswordData({ newPassword: "", confirmPassword: "" });
+      setTimeout(() => setPasswordUpdateSuccess(false), 5000);
     }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError("");
+    if (!deletePassword) {
+      setDeleteError("Zəhmət olmasa şifrənizi daxil edin.");
+      return;
+    }
+
+    setIsDeletingAccount(true);
+
+    // 1. Verify Password via SignIn
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: session.user.email,
+      password: deletePassword,
+    });
+
+    if (signInError) {
+      setIsDeletingAccount(false);
+      setDeleteError("Daxil etdiyiniz şifrə yanlışdır");
+      return;
+    }
+
+    // 2. Password is correct. Delete user via RPC
+    const { error: deleteError } = await supabase.rpc('delete_user');
+
+    if (deleteError) {
+      setIsDeletingAccount(false);
+      setDeleteError("Hesab silinərkən xəta baş verdi: " + deleteError.message);
+      return;
+    }
+
+    // 3. Success
+    setIsDeletingAccount(false);
+    alert("Hesabınız uğurla silindi");
+    await supabase.auth.signOut();
+    router.push("/login");
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, isProfile: boolean) => {
@@ -265,6 +311,7 @@ export default function DashboardPage() {
                   { id: "leaderboard", label: "Reytinq və Tarixçə", icon: Trophy },
                   { id: "resources", label: "Resurslar", icon: BookOpen },
                   { id: "certs", label: "Sertifikatlar", icon: Award },
+                  { id: "account", label: "Hesabı İdarə Et", icon: Zap },
                 ].map(item => (
                   <button
                     key={item.id}
@@ -357,33 +404,6 @@ export default function DashboardPage() {
                       ) : (
                         <p className="font-medium text-lg border border-transparent p-2.5 pl-0">{profileData.region}</p>
                       )}
-                    </div>
-                  </div>
-
-                  {/* Change Password Block */}
-                  <div className="mt-8 border-t border-border pt-8">
-                    <h4 className="text-xl font-bold mb-4 flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-primary" /> Şifrəni Yenilə
-                    </h4>
-                    <p className="text-sm text-muted-foreground mb-4">Əgər Google vasitəsilə qeydiyyatdan keçmisinizsə və ya şifrənizi dəyişmək istəyirsinizsə, aşağıdan yeni şifrə təyin edə bilərsiniz.</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-                      <div className="space-y-2">
-                        <label className="text-sm text-muted-foreground">Yeni Şifrə</label>
-                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-lg p-2.5 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={passwordData.newPassword} onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm text-muted-foreground">Şifrəni Təkrarla</label>
-                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-lg p-2.5 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={passwordData.confirmPassword} onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})} />
-                      </div>
-                      <div className="md:col-span-2">
-                        <button 
-                          onClick={handleUpdatePassword} 
-                          disabled={isUpdatingPassword || !passwordData.newPassword}
-                          className="px-6 py-2.5 rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors font-medium text-sm disabled:opacity-50"
-                        >
-                          {isUpdatingPassword ? "Yenilənir..." : "Şifrəni Yenilə"}
-                        </button>
-                      </div>
                     </div>
                   </div>
 
@@ -615,10 +635,137 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              {/* ACCOUNT TAB */}
+              {activeTab === "account" && (
+                <div>
+                  <h3 className="text-2xl font-bold mb-8">Hesabı İdarə Et</h3>
+
+                  {/* Change Password Block */}
+                  <div className="bg-card border border-border rounded-2xl p-6 shadow-sm mb-10 relative">
+                    <h4 className="text-xl font-bold mb-4 flex items-center gap-2">
+                      <Zap className="w-5 h-5 text-primary" /> Şifrəni Yenilə
+                    </h4>
+                    <p className="text-sm text-muted-foreground mb-6">Mövcud şifrənizi dəyişdirmək və ya Google hesabınızdan asılı olmamaq üçün yeni şifrə təyin edə bilərsiniz.</p>
+                    
+                    <AnimatePresence>
+                      {passwordUpdateSuccess && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0, y: -10 }}
+                          animate={{ opacity: 1, height: "auto", y: 0 }}
+                          exit={{ opacity: 0, height: 0, y: -10 }}
+                          className="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-600 flex items-center gap-3 overflow-hidden"
+                        >
+                          <CheckCircle2 className="w-5 h-5 shrink-0" />
+                          <span className="font-medium text-sm">Şifrəniz uğurla yeniləndi!</span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Yeni Şifrə</label>
+                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all" value={passwordData.newPassword} onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Şifrəni Təkrarla</label>
+                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all" value={passwordData.confirmPassword} onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <button 
+                          onClick={handleUpdatePassword} 
+                          disabled={isUpdatingPassword || !passwordData.newPassword}
+                          className="px-8 py-3 rounded-xl bg-primary text-white hover:bg-primary-hover transition-colors font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {isUpdatingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
+                          {isUpdatingPassword ? "Yenilənir..." : "Şifrəni Yenilə"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Delete Account Block */}
+                  <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 shadow-sm">
+                    <h4 className="text-xl font-bold mb-2 flex items-center gap-2 text-red-600">
+                      <AlertTriangle className="w-5 h-5" /> Hesabı Sil
+                    </h4>
+                    <p className="text-sm text-red-600/80 mb-6">Hesabınızı birdəfəlik silmək qərarına gəlsəniz, bütün profil məlumatlarınız, müraciətləriniz və fəaliyyət tarixçəniz sistemdən silinəcək. Bu əməliyyat geri qaytarıla bilməz.</p>
+                    
+                    <button 
+                      onClick={() => setIsDeleteModalOpen(true)}
+                      className="px-6 py-2.5 rounded-xl bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white transition-all font-medium text-sm flex items-center justify-center gap-2"
+                    >
+                      Hesabı Birdəfəlik Sil
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </motion.div>
           </div>
         </div>
       </div>
+
+      {/* DELETE ACCOUNT MODAL */}
+      <AnimatePresence>
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-card border border-red-500/30 rounded-3xl shadow-2xl p-6 md:p-8 relative"
+            >
+              <button 
+                onClick={() => { setIsDeleteModalOpen(false); setDeletePassword(""); setDeleteError(""); }} 
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-2xl font-bold mb-2">Hesabı Silmək</h3>
+                <p className="text-muted-foreground text-sm">Hesabınızı birdəfəlik silməyə əminsiniz? Bu əməliyyat geri qaytarıla bilməz.</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Təhlükəsizlik üçün cari şifrənizi daxil edin</label>
+                  <input 
+                    type="password" 
+                    placeholder="Şifrəniz" 
+                    className={`w-full border rounded-xl p-3 bg-background focus:outline-none transition-all ${deleteError ? 'border-red-500 focus:ring-red-500/20' : 'border-border focus:ring-2 focus:ring-red-500/50'}`}
+                    value={deletePassword} 
+                    onChange={e => { setDeletePassword(e.target.value); setDeleteError(""); }} 
+                  />
+                  {deleteError && (
+                    <p className="text-sm font-medium text-red-500 mt-1">{deleteError}</p>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button 
+                    onClick={() => { setIsDeleteModalOpen(false); setDeletePassword(""); setDeleteError(""); }} 
+                    className="flex-1 py-3 rounded-xl border border-border bg-background hover:bg-muted font-medium transition-colors"
+                  >
+                    Ləğv et
+                  </button>
+                  <button 
+                    onClick={handleDeleteAccount}
+                    disabled={isDeletingAccount || !deletePassword}
+                    className="flex-1 py-3 rounded-xl bg-red-500 text-white hover:bg-red-600 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isDeletingAccount && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isDeletingAccount ? "Silinir..." : "Bəli, Əminəm"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* NEW APPLICATION MODAL */}
       <AnimatePresence>
