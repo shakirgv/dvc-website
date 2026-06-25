@@ -109,7 +109,12 @@ export default function DashboardPage() {
       education: profileData.education,
       avatar_url: profileData.avatar,
     };
-    await supabase.from("profiles").upsert(updates);
+    const { error } = await supabase.from("profiles").upsert(updates);
+    if (error) {
+      alert("Profil yadda saxlanılarkən xəta baş verdi: " + error.message);
+      return;
+    }
+    alert("Profiliniz uğurla yeniləndi!");
     setIsEditingProfile(false);
   };
 
