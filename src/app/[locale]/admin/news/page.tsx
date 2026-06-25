@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Search, Eye, X, Image as ImageIcon, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { logAdminAction } from "@/lib/audit-logger";
 
 type Language = "az" | "en" | "ru";
 
@@ -46,11 +47,12 @@ export default function AdminNewsPage() {
     setIsLoading(false);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, title?: string) => {
     if (confirm("Bu xəbəri silmək istədiyinizə əminsiniz?")) {
       const { error } = await supabase.from("news").delete().eq("id", id);
       if (!error) {
         setNews(news.filter(n => n.id !== id));
+        await logAdminAction(`Xəbər silindi: "${title || id}"`, "News");
       }
     }
   };
@@ -86,6 +88,7 @@ export default function AdminNewsPage() {
         .select();
       if (data && data.length > 0) {
         setNews(news.map(n => n.id === formData.id ? data[0] : n));
+        await logAdminAction(`Xəbər redaktə edildi: "${formData.title_az}"`, "News");
       }
     } else {
       // Insert
@@ -95,6 +98,7 @@ export default function AdminNewsPage() {
         .select();
       if (data && data.length > 0) {
         setNews([data[0], ...news]);
+        await logAdminAction(`Yeni xəbər yaradıldı: "${formData.title_az}"`, "News");
       }
     }
     setIsModalOpen(false);
@@ -183,10 +187,7 @@ export default function AdminNewsPage() {
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button 
-                        onClick={() => handleDelete(item.id)}
-                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                      >
+                      <button onClick={() => handleDelete(item.id, item.title_az)} className="p-2 bg-red-500/10 text-red-600 hover:bg-red-500/20 rounded-xl transition-colors">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>

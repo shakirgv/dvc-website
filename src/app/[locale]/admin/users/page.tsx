@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Search, Download, Shield, ShieldOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { logAdminAction } from "@/lib/audit-logger";
 
 export default function AdminUsersPage() {
   const supabase = createClient();
@@ -36,12 +37,7 @@ export default function AdminUsersPage() {
         fetchUsers();
         
         // Log the action
-        const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from("audit_logs").insert({
-          action: `İstifadəçi rolu dəyişdirildi (ID: ${userId}) -> ${newRole}`,
-          admin_id: user?.id,
-          admin_email: user?.email
-        });
+        await logAdminAction(`İstifadəçi rolu dəyişdirildi (ID: ${userId}) -> ${newRole}`, "Users");
       }
     }
   };

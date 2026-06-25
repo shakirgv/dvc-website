@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Send, BellRing, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { logAdminAction } from "@/lib/audit-logger";
 
 export default function AdminBroadcastPage() {
   const supabase = createClient();
@@ -37,11 +38,7 @@ export default function AdminBroadcastPage() {
     }
 
     // 2. Log in Audit Logs
-    await supabase.from("audit_logs").insert({
-      action: `Kütləvi bildiriş göndərildi: "${formData.title}"`,
-      admin_id: user?.id,
-      admin_email: user?.email
-    });
+    await logAdminAction(`Kütləvi bildiriş göndərildi: "${formData.title}"`, "Broadcast");
 
     setIsSending(false);
     alert("Bildiriş uğurla bütün istifadəçilərə göndərildi!");

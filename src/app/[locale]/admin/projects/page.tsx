@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { CheckCircle, XCircle, Search, Eye, X, Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { logAdminAction } from "@/lib/audit-logger";
 
 export default function AdminProjectsPage() {
   const [applications, setApplications] = useState<any[]>([]);
@@ -33,6 +34,10 @@ export default function AdminProjectsPage() {
     if (error) {
       alert("Xəta baş verdi: " + error.message);
       fetchApps(); // revert
+    } else {
+      const app = applications.find(a => a.id === appId);
+      const actionText = newStatus === "Approved" ? "təsdiqlədi" : "ləğv etdi";
+      await logAdminAction(`Müraciəti ${actionText}: ${app?.user_name} (${app?.projects?.title_az || "Layihə"})`, "Applications");
     }
   };
 
