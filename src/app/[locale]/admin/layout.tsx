@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname, useParams } from "next/navigation";
-import { MOCK_AUTH } from "@/lib/mock-auth";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { LayoutDashboard, Newspaper, Folders, Video, LogOut, Settings, MapPin, Users, Handshake, BarChart, BookOpen } from "lucide-react";
 
@@ -13,25 +13,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const locale = params?.locale || "az";
   
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
-    // If we are on the login page, don't check for admin or redirect.
-    if (pathname.includes('/admin/login')) {
-      setIsAdmin(true); // Let the login page render
-      return;
-    }
+    const checkAdmin = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setIsAdmin(false);
+        router.push(`/${locale}/login`);
+        return;
+      }
 
-    const session = MOCK_AUTH.getSession();
-    if (session && session.role === "admin") {
-      setIsAdmin(true);
-    } else {
-      setIsAdmin(false);
-      router.push(`/${locale}/admin/login`);
-    }
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      
+      if (profile && profile.role === 'admin') {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
+        router.push(`/${locale}`);
+      }
+    };
+
+    checkAdmin();
   }, [pathname, router, locale]);
 
-  if (isAdmin === null) return null; // loading state
-  if (pathname.includes('/admin/login')) return <>{children}</>;
+  if (isAdmin === null) return <div className="flex h-screen items-center justify-center bg-muted/30">Yüklənir...</div>; // loading state
+  if (!isAdmin) return null; // Wait for redirect
+
 
   const menuItems = [
     { href: `/${locale}/admin`, icon: LayoutDashboard, label: "Statistika" },
@@ -78,9 +87,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="p-4 border-t border-border">
           <button 
-            onClick={() => {
-              MOCK_AUTH.logout();
-              router.push(`/${locale}/admin/login`);
+            onClick={async () => {
+              await supabase.auth.signOut();
+              router.push(`/${locale}/login`);
             }}
             className="flex items-center gap-3 px-4 py-3 w-full text-left rounded-xl text-red-500 font-medium hover:bg-red-500/10 transition-colors"
           >

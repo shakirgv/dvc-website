@@ -56,10 +56,23 @@ export async function proxy(request: NextRequest) {
   }
 
   const isDashboard = pathname.includes('/dashboard')
+  const isAdminRoute = pathname.includes('/admin')
 
-  // Auth protection
+  // Auth protection for dashboard
   if (isDashboard && !user) {
     return NextResponse.redirect(new URL(`/${localeToUse}/login`, request.url))
+  }
+
+  // Admin route protection
+  if (isAdminRoute) {
+    if (!user) {
+      return NextResponse.redirect(new URL(`/${localeToUse}/login`, request.url))
+    }
+    // Check if user has admin role
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    if (!profile || profile.role !== 'admin') {
+      return NextResponse.redirect(new URL(`/${localeToUse}`, request.url))
+    }
   }
   
   // Disable going to login/register if already logged in
