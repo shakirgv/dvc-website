@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Trash2, Save, GripVertical, Settings, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { logAdminAction } from "@/lib/audit-logger";
 
 type Language = "az" | "en" | "ru";
 
@@ -67,6 +68,7 @@ export default function AdminFormBuilderPage() {
     if (error) {
       alert("Xəta baş verdi: " + error.message);
     } else {
+      await logAdminAction(`Yeni form və layihə yaradıldı: ${projectData.title_az || "Adsız"}`, "Form Builder");
       alert("Layihə və form uğurla bazaya əlavə edildi!");
       console.log(payload);
     }

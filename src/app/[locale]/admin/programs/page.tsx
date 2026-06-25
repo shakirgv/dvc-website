@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { logAdminAction } from "@/lib/audit-logger";
 
 type Language = "az" | "en" | "ru";
 
@@ -88,7 +89,9 @@ export default function AdminProgramsPage() {
       try {
         const { error } = await supabase.from("programs").delete().eq("id", id);
         if (error) throw error;
+        const deletedProgram = programs.find(p => p.id === id);
         setPrograms(programs.filter(p => p.id !== id));
+        await logAdminAction(`Proqram silindi: ${deletedProgram?.title_az || "Adsız"}`, "Programs");
       } catch (err: any) {
         alert("Silinmə zamanı xəta: " + err.message);
       }
@@ -270,6 +273,7 @@ export default function AdminProgramsPage() {
             ...data,
             stats_json: Array.isArray(data.stats_json) ? data.stats_json : []
           } : p));
+          await logAdminAction(`Proqram yeniləndi: ${dataToSave.title_az || "Adsız"}`, "Programs");
           setIsModalOpen(false);
         }
       } else {
@@ -285,6 +289,7 @@ export default function AdminProgramsPage() {
             ...data,
             stats_json: Array.isArray(data.stats_json) ? data.stats_json : []
           }]);
+          await logAdminAction(`Yeni proqram yaradıldı: ${dataToSave.title_az || "Adsız"}`, "Programs");
           setIsModalOpen(false);
         }
       }

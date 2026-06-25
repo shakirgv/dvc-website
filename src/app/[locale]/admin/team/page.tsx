@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { logAdminAction } from "@/lib/audit-logger";
 
 type Language = "az" | "en" | "ru";
 
@@ -53,7 +54,9 @@ export default function AdminTeamPage() {
     if (confirm("Bu şəxsi silmək istədiyinizə əminsiniz?")) {
       const { error } = await supabase.from("team_members").delete().eq("id", id);
       if (!error) {
+        const deletedMember = members.find(m => m.id === id);
         setMembers(members.filter(m => m.id !== id));
+        await logAdminAction(`Komanda üzvü silindi: ${deletedMember?.name || "Adsız"}`, "Team");
       }
     }
   };
@@ -116,6 +119,7 @@ export default function AdminTeamPage() {
       const { data, error } = await supabase.from("team_members").update(dataToSave).eq("id", dataToSave.id).select().single();
       if (!error && data) {
         setMembers(members.map(m => m.id === data.id ? data : m));
+        await logAdminAction(`Komanda üzvü yeniləndi: ${dataToSave.name || "Adsız"}`, "Team");
         setIsModalOpen(false);
       } else {
         alert("Xəta baş verdi: " + error?.message);
@@ -124,6 +128,7 @@ export default function AdminTeamPage() {
       const { data, error } = await supabase.from("team_members").insert([dataToSave]).select().single();
       if (!error && data) {
         setMembers([...members, data]);
+        await logAdminAction(`Yeni komanda üzvü əlavə edildi: ${dataToSave.name || "Adsız"}`, "Team");
         setIsModalOpen(false);
       } else {
         alert("Xəta baş verdi: " + error?.message);

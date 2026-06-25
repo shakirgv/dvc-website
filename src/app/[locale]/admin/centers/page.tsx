@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { logAdminAction } from "@/lib/audit-logger";
 import dynamic from "next/dynamic";
 
 const MapPicker = dynamic(() => import("@/components/map-picker"), { ssr: false });
@@ -58,7 +59,9 @@ export default function AdminCentersPage() {
     if (confirm("Bu mərkəzi/klubu silmək istədiyinizə əminsiniz?")) {
       const { error } = await supabase.from("centers").delete().eq("id", id);
       if (!error) {
+        const deletedCenter = centers.find(c => c.id === id);
         setCenters(centers.filter(c => c.id !== id));
+        await logAdminAction(`Mərkəz/Klub silindi: ${deletedCenter?.name_az || "Adsız"}`, "Centers");
       }
     }
   };
@@ -104,6 +107,7 @@ export default function AdminCentersPage() {
       }
       if (data && data.length > 0) {
         setCenters(centers.map(c => c.id === formData.id ? data[0] : c));
+        await logAdminAction(`Mərkəz/Klub yeniləndi: ${formData.name_az || "Adsız"}`, "Centers");
       }
     } else {
       // Insert
@@ -117,6 +121,7 @@ export default function AdminCentersPage() {
       }
       if (data && data.length > 0) {
         setCenters([data[0], ...centers]);
+        await logAdminAction(`Yeni Mərkəz/Klub yaradıldı: ${formData.name_az || "Adsız"}`, "Centers");
       }
     }
     setIsModalOpen(false);

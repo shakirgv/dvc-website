@@ -37,7 +37,7 @@ export default function AdminProjectsPage() {
     } else {
       const app = applications.find(a => a.id === appId);
       const actionText = newStatus === "Approved" ? "təsdiqlədi" : "ləğv etdi";
-      await logAdminAction(`Müraciəti ${actionText}: ${app?.user_name} (${app?.projects?.title_az || "Layihə"})`, "Applications");
+      await logAdminAction(`Müraciəti ${actionText}: ${app?.user_name} (${app?.projects?.title_az || "Layihə"})`, "Projects");
     }
   };
 

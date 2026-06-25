@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, Camera, Plus, X, BookOpen, File as FileIcon, Bot, Zap, Users, Trophy, QrCode, History, Loader2, AlertCircle } from "lucide-react";
+import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, Camera, Plus, X, BookOpen, File as FileIcon, Bot, Zap, Users, Trophy, QrCode, History, Loader2, AlertCircle, Bell, Info, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n-context";
@@ -27,6 +27,9 @@ export default function DashboardPage() {
   const [isNewAppModalOpen, setIsNewAppModalOpen] = useState(false);
   const [selectedProjectForApp, setSelectedProjectForApp] = useState<any>(null);
   const [applicationFormData, setApplicationFormData] = useState<any>({});
+
+  // Notifications State
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   // Onboarding State
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -92,6 +95,11 @@ export default function DashboardPage() {
         status: a.status
       })));
     }
+
+    // Fetch Notifications
+    const { data: notifs } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(5);
+    if (notifs) setNotifications(notifs);
+
     setIsLoadingApps(false);
   };
 
@@ -378,6 +386,29 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Notifications Block */}
+                  {notifications.length > 0 && (
+                    <div className="mt-8 border-t border-border pt-8">
+                      <h4 className="text-xl font-bold mb-4 flex items-center gap-2">
+                        <Bell className="w-5 h-5 text-primary" /> Son Bildirişlər
+                      </h4>
+                      <div className="space-y-4">
+                        {notifications.map(n => (
+                          <div key={n.id} className="p-4 rounded-xl border border-border bg-card flex gap-4 shadow-sm">
+                            <div className={`mt-1 shrink-0 ${n.type === 'success' ? 'text-green-500' : n.type === 'warning' ? 'text-orange-500' : 'text-primary'}`}>
+                              {n.type === 'success' ? <CheckCircle2 className="w-6 h-6" /> : n.type === 'warning' ? <AlertTriangle className="w-6 h-6" /> : <Info className="w-6 h-6" />}
+                            </div>
+                            <div>
+                              <h5 className="font-bold text-lg mb-1">{n.title}</h5>
+                              <p className="text-muted-foreground text-sm whitespace-pre-wrap">{n.content}</p>
+                              <p className="text-xs text-muted-foreground mt-2">{new Date(n.created_at).toLocaleString('az-AZ', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Action CTAs */}
                   <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-6">

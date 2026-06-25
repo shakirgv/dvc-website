@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { logAdminAction } from "@/lib/audit-logger";
 
 type Language = "az" | "en" | "ru";
 
@@ -48,7 +49,9 @@ export default function AdminPartnersPage() {
     if (confirm("Bu tərəfdaşı silmək istədiyinizə əminsiniz?")) {
       const { error } = await supabase.from("partners").delete().eq("id", id);
       if (!error) {
+        const deletedPartner = partners.find(p => p.id === id);
         setPartners(partners.filter(p => p.id !== id));
+        await logAdminAction(`Tərəfdaş silindi: ${deletedPartner?.name_az || "Adsız"}`, "Partners");
       }
     }
   };
@@ -87,6 +90,7 @@ export default function AdminPartnersPage() {
       }
       if (data && data.length > 0) {
         setPartners(partners.map(p => p.id === formData.id ? data[0] : p));
+        await logAdminAction(`Tərəfdaş yeniləndi: ${formData.name_az || "Adsız"}`, "Partners");
       }
     } else {
       // Insert
@@ -100,6 +104,7 @@ export default function AdminPartnersPage() {
       }
       if (data && data.length > 0) {
         setPartners([...partners, data[0]]);
+        await logAdminAction(`Yeni tərəfdaş əlavə edildi: ${formData.name_az || "Adsız"}`, "Partners");
       }
     }
     setIsModalOpen(false);

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, X, BarChart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { logAdminAction } from "@/lib/audit-logger";
 
 type Language = "az" | "en" | "ru";
 
@@ -47,7 +48,9 @@ export default function AdminStatsPage() {
     if (confirm("Bu statistikanı silmək istədiyinizə əminsiniz?")) {
       const { error } = await supabase.from("home_stats").delete().eq("id", id);
       if (!error) {
+        const deletedStat = stats.find(s => s.id === id);
         setStats(stats.filter(s => s.id !== id));
+        await logAdminAction(`Statistika silindi: ${deletedStat?.label_az || "Adsız"}`, "Stats");
       }
     }
   };
@@ -84,6 +87,7 @@ export default function AdminStatsPage() {
       }
       if (data && data.length > 0) {
         setStats(stats.map(s => s.id === formData.id ? data[0] : s));
+        await logAdminAction(`Statistika yeniləndi: ${formData.label_az || "Adsız"}`, "Stats");
       }
     } else {
       // Insert
@@ -97,6 +101,7 @@ export default function AdminStatsPage() {
       }
       if (data && data.length > 0) {
         setStats([...stats, data[0]]);
+        await logAdminAction(`Yeni statistika əlavə edildi: ${formData.label_az || "Adsız"}`, "Stats");
       }
     }
     setIsModalOpen(false);
