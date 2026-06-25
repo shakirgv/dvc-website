@@ -29,8 +29,13 @@ export default function DashboardPage() {
 
   // Onboarding State
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingData, setOnboardingData] = useState({ phone: "+994 ", region: "Bakı", education: "" });
+  const [onboardingData, setOnboardingData] = useState({ phone: "+994 ", region: "Bakı", education: "", password: "", confirmPassword: "" });
   const [isOnboardingLoading, setIsOnboardingLoading] = useState(false);
+  
+  // Password Update State
+  const [passwordData, setPasswordData] = useState({ newPassword: "", confirmPassword: "" });
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
   const supabase = createClient();
 
   useEffect(() => {
@@ -110,6 +115,9 @@ export default function DashboardPage() {
 
   const saveOnboarding = async () => {
     if (onboardingData.phone.length < 19) return alert("Zəhmət olmasa telefon nömrəsini tam daxil edin.");
+    if (onboardingData.password.length > 0 && onboardingData.password.length < 6) return alert("Şifrə minimum 6 simvol olmalıdır.");
+    if (onboardingData.password !== onboardingData.confirmPassword) return alert("Şifrələr uyğun gəlmir.");
+    
     setIsOnboardingLoading(true);
     const updates = {
       id: session?.user?.id,
@@ -120,9 +128,34 @@ export default function DashboardPage() {
       education: onboardingData.education,
     };
     await supabase.from("profiles").upsert(updates);
+    
+    // Update password if provided
+    if (onboardingData.password) {
+      const { error } = await supabase.auth.updateUser({ password: onboardingData.password });
+      if (error) {
+        alert("Şifrə təyin edilərkən xəta: " + error.message);
+      }
+    }
+
     setProfileData((prev: any) => ({ ...prev, ...updates, firstName: updates.first_name, lastName: updates.last_name }));
     setIsOnboardingLoading(false);
     setShowOnboarding(false);
+  };
+
+  const handleUpdatePassword = async () => {
+    if (passwordData.newPassword.length < 6) return alert("Şifrə minimum 6 simvol olmalıdır.");
+    if (passwordData.newPassword !== passwordData.confirmPassword) return alert("Şifrələr uyğun gəlmir.");
+    
+    setIsUpdatingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: passwordData.newPassword });
+    setIsUpdatingPassword(false);
+
+    if (error) {
+      alert("Şifrə yenilənərkən xəta baş verdi: " + error.message);
+    } else {
+      alert("Şifrəniz uğurla yeniləndi!");
+      setPasswordData({ newPassword: "", confirmPassword: "" });
+    }
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, isProfile: boolean) => {
@@ -312,9 +345,36 @@ export default function DashboardPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Change Password Block */}
+                  <div className="mt-8 border-t border-border pt-8">
+                    <h4 className="text-xl font-bold mb-4 flex items-center gap-2">
+                      <Zap className="w-5 h-5 text-primary" /> Şifrəni Yenilə
+                    </h4>
+                    <p className="text-sm text-muted-foreground mb-4">Əgər Google vasitəsilə qeydiyyatdan keçmisinizsə və ya şifrənizi dəyişmək istəyirsinizsə, aşağıdan yeni şifrə təyin edə bilərsiniz.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">Yeni Şifrə</label>
+                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-lg p-2.5 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={passwordData.newPassword} onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">Şifrəni Təkrarla</label>
+                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-lg p-2.5 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={passwordData.confirmPassword} onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <button 
+                          onClick={handleUpdatePassword} 
+                          disabled={isUpdatingPassword || !passwordData.newPassword}
+                          className="px-6 py-2.5 rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors font-medium text-sm disabled:opacity-50"
+                        >
+                          {isUpdatingPassword ? "Yenilənir..." : "Şifrəni Yenilə"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                   
                   {/* Action CTAs */}
-                  <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* AI Partner CTA */}
                     <div className="p-6 md:p-8 rounded-3xl bg-gradient-to-br from-primary to-primary-hover text-white flex flex-col justify-between shadow-xl relative overflow-hidden group">
                       <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
@@ -658,6 +718,18 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Təhsil Müəssisəsi (istəyə bağlı)</label>
                   <input type="text" className="w-full border border-border rounded-xl py-3 px-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={onboardingData.education} onChange={e => setOnboardingData({...onboardingData, education: e.target.value})} placeholder="Universitet / Məktəb" />
+                </div>
+                
+                <div className="space-y-2 pt-4 border-t border-border">
+                  <h4 className="font-semibold mb-1">Gələcək Giriş Üçün Şifrə Təyin Edin</h4>
+                  <p className="text-xs text-muted-foreground mb-3">Google hesabınızdan asılı olmamaq üçün şifrə yaradın.</p>
+                  
+                  <label className="text-sm font-medium">Şifrə Təyin Et</label>
+                  <input required type="password" minLength={6} className="w-full border border-border rounded-xl py-3 px-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={onboardingData.password} onChange={e => setOnboardingData({...onboardingData, password: e.target.value})} placeholder="Minimum 6 simvol" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Şifrəni Təkrarla</label>
+                  <input required type="password" minLength={6} className="w-full border border-border rounded-xl py-3 px-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={onboardingData.confirmPassword} onChange={e => setOnboardingData({...onboardingData, confirmPassword: e.target.value})} placeholder="Şifrəni təkrarlayın" />
                 </div>
 
                 <button 
