@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, Mail, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { MOCK_AUTH } from "@/lib/mock-auth";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,33 +14,35 @@ export default function LoginPage() {
     password: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const supabase = createClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    setTimeout(() => {
-      MOCK_AUTH.login({
-        firstName: "İstifadəçi",
-        lastName: "",
-        email: formData.email,
-        region: "Bakı"
-      });
+    setErrorMsg("");
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: formData.email,
+      password: formData.password,
+    });
+
+    if (error) {
+      setErrorMsg(error.message);
+      setIsLoading(false);
+    } else {
       router.push("/dashboard");
-    }, 1500);
+    }
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      MOCK_AUTH.login({
-        firstName: "Google",
-        lastName: "User",
-        email: "user@gmail.com",
-        region: "Bakı"
-      });
-      router.push("/dashboard");
-    }, 1000);
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
   };
 
   return (
@@ -80,6 +82,12 @@ export default function LoginPage() {
           <span className="text-sm text-muted-foreground font-medium">və ya</span>
           <div className="h-px bg-border flex-1" />
         </div>
+
+        {errorMsg && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm mb-6 text-center">
+            {errorMsg === "Email not confirmed" ? "Zəhmət olmasa e-poçtunuza göndərilən təsdiqləmə linkinə daxil olun." : errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

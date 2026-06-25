@@ -3,10 +3,9 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { MOCK_AUTH } from "@/lib/mock-auth";
-import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, Camera, Plus, X, BookOpen, File as FileIcon, Bot, Zap, Users, Trophy, QrCode, History, Loader2 } from "lucide-react";
+import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, Camera, Plus, X, BookOpen, File as FileIcon, Bot, Zap, Users, Trophy, QrCode, History, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n-context";
 
 export default function DashboardPage() {
@@ -28,21 +27,46 @@ export default function DashboardPage() {
   const [selectedProjectForApp, setSelectedProjectForApp] = useState<any>(null);
   const [applicationFormData, setApplicationFormData] = useState<any>({});
 
+  // Onboarding State
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingData, setOnboardingData] = useState({ phone: "+994 ", region: "Bakı", education: "" });
+  const [isOnboardingLoading, setIsOnboardingLoading] = useState(false);
+  const supabase = createClient();
+
   useEffect(() => {
-    const userSession = MOCK_AUTH.getSession();
-    if (!userSession) {
-      router.push("/login");
-    } else {
-      setSession(userSession);
-      setProfileData({
-        firstName: userSession.firstName || "",
-        lastName: userSession.lastName || "",
-        phone: userSession.phone || "",
-        region: userSession.region || "",
-        avatar: userSession.avatar || null
-      });
-      fetchData(userSession.id);
-    }
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+      setSession(session);
+      
+      // Fetch profile from public.profiles table
+      const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+      
+      if (profile) {
+        setProfileData({
+          firstName: profile.first_name || session.user.user_metadata.first_name || session.user.user_metadata.name || "",
+          lastName: profile.last_name || session.user.user_metadata.last_name || "",
+          phone: profile.phone || "",
+          region: profile.region || "",
+          education: profile.education || "",
+          avatar: profile.avatar_url || session.user.user_metadata.avatar_url || null
+        });
+
+        if (!profile.phone || !profile.region) {
+          setShowOnboarding(true);
+        }
+      } else {
+        // If profile doesn't exist yet (maybe trigger failed or Google login), show onboarding
+        setShowOnboarding(true);
+      }
+      
+      fetchData(session.user.id);
+    };
+
+    checkSession();
   }, [router]);
 
   const fetchData = async (userId: string) => {
@@ -65,16 +89,54 @@ export default function DashboardPage() {
     setIsLoadingApps(false);
   };
 
-  const handleLogout = () => {
-    MOCK_AUTH.logout();
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.push("/");
   };
 
-  const saveProfile = () => {
-    const updatedSession = { ...session, ...profileData };
-    setSession(updatedSession);
-    localStorage.setItem("dvc-mock-session", JSON.stringify(updatedSession));
+  const saveProfile = async () => {
+    const updates = {
+      id: session.user.id,
+      first_name: profileData.firstName,
+      last_name: profileData.lastName,
+      phone: profileData.phone,
+      region: profileData.region,
+      education: profileData.education,
+      avatar_url: profileData.avatar,
+    };
+    await supabase.from("profiles").upsert(updates);
     setIsEditingProfile(false);
+  };
+
+  const saveOnboarding = async () => {
+    if (onboardingData.phone.length < 19) return alert("Zəhmət olmasa telefon nömrəsini tam daxil edin.");
+    setIsOnboardingLoading(true);
+    const updates = {
+      id: session?.user?.id,
+      first_name: session?.user?.user_metadata?.full_name?.split(" ")[0] || session?.user?.user_metadata?.name || "",
+      last_name: session?.user?.user_metadata?.full_name?.split(" ").slice(1).join(" ") || "",
+      phone: onboardingData.phone,
+      region: onboardingData.region,
+      education: onboardingData.education,
+    };
+    await supabase.from("profiles").upsert(updates);
+    setProfileData((prev: any) => ({ ...prev, ...updates, firstName: updates.first_name, lastName: updates.last_name }));
+    setIsOnboardingLoading(false);
+    setShowOnboarding(false);
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, isProfile: boolean) => {
+    let val = e.target.value;
+    if (!val.startsWith("+994 ")) val = "+994 ";
+    const numbers = val.substring(5).replace(/\D/g, "");
+    let formatted = "+994 ";
+    if (numbers.length > 0) formatted += "(" + numbers.substring(0, 2);
+    if (numbers.length >= 2) formatted += ") " + numbers.substring(2, 5);
+    if (numbers.length >= 5) formatted += "-" + numbers.substring(5, 7);
+    if (numbers.length >= 7) formatted += "-" + numbers.substring(7, 9);
+    
+    if (isProfile) setProfileData({ ...profileData, phone: formatted });
+    else setOnboardingData({ ...onboardingData, phone: formatted });
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,9 +161,9 @@ export default function DashboardPage() {
 
     const payload = {
       project_id: selectedProjectForApp.id,
-      user_name: `${session.firstName} ${session.lastName}`,
-      user_email: session.email,
-      user_id: session.id,
+      user_name: `${profileData.firstName} ${profileData.lastName}`,
+      user_email: session.user.email,
+      user_id: session.user.id,
       answers: applicationFormData,
       status: "Pending"
     };
@@ -115,7 +177,7 @@ export default function DashboardPage() {
     alert("Müraciətiniz uğurla göndərildi!");
     setIsNewAppModalOpen(false);
     setSelectedProjectForApp(null);
-    fetchData(session.id); // Refresh
+    fetchData(session.user.id); // Refresh
   };
 
   if (!session) return <div className="min-h-screen flex items-center justify-center">Yüklənir...</div>;
@@ -143,9 +205,9 @@ export default function DashboardPage() {
                 </div>
                 <input type="file" hidden ref={fileInputRef} onChange={handleAvatarChange} accept="image/*" />
                 <h2 className="text-xl font-bold">{profileData.firstName} {profileData.lastName}</h2>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mt-2">
-                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  {session.id}
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mt-2 truncate max-w-[200px]">
+                  <span className="w-2 h-2 shrink-0 rounded-full bg-primary animate-pulse" />
+                  {session.user.id.substring(0, 8)}...
                 </span>
               </div>
 
@@ -229,12 +291,12 @@ export default function DashboardPage() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">E-poçt</label>
-                      <p className="font-medium text-lg border border-transparent p-2.5 pl-0 opacity-70">{session.email} (Dəyişdirilə bilməz)</p>
+                      <p className="font-medium text-lg border border-transparent p-2.5 pl-0 opacity-70">{session.user.email} (Dəyişdirilə bilməz)</p>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">Telefon</label>
                       {isEditingProfile ? (
-                        <input className="w-full border border-border rounded-lg p-2.5 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} />
+                        <input className="w-full border border-border rounded-lg p-2.5 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={profileData.phone} onChange={e => handlePhoneChange(e, true)} maxLength={19} />
                       ) : (
                         <p className="font-medium text-lg border border-transparent p-2.5 pl-0">{profileData.phone || "Qeyd olunmayıb"}</p>
                       )}
@@ -408,7 +470,7 @@ export default function DashboardPage() {
                     {[
                       { name: "Leyla Əliyeva", id: "DVC-2026-1024", score: 98, avatar: "L" },
                       { name: "Rəşad Quliyev", id: "DVC-2026-5512", score: 95, avatar: "R" },
-                      { name: "Siz (Mövcud Sessiya)", id: session?.id, score: 92, avatar: "S" },
+                      { name: "Siz (Mövcud Sessiya)", id: session.user.id.substring(0,8), score: 92, avatar: "S" },
                     ].map((user, i) => (
                       <div key={i} className={`flex items-center gap-4 p-4 rounded-2xl border ${i === 2 ? 'bg-primary/5 border-primary/30' : 'bg-card border-border'}`}>
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${i === 0 ? 'bg-yellow-500 text-white' : i === 1 ? 'bg-gray-300 text-gray-800' : 'bg-primary text-white'}`}>
@@ -560,6 +622,52 @@ export default function DashboardPage() {
                   </form>
                 </>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ONBOARDING MODAL */}
+      <AnimatePresence>
+        {showOnboarding && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/90 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-md bg-card border border-border rounded-3xl shadow-2xl p-8 relative"
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-2xl font-bold mb-2">Profili Tamamlayın</h3>
+                <p className="text-muted-foreground text-sm">Zəhmət olmasa platformadan istifadəyə davam etmək üçün bu məlumatları təqdim edin.</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Telefon</label>
+                  <input required type="tel" className="w-full border border-border rounded-xl py-3 px-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={onboardingData.phone} onChange={e => handlePhoneChange(e, false)} maxLength={19} placeholder="+994 (XX) XXX-XX-XX" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Region</label>
+                  <select className="w-full border border-border rounded-xl py-3 px-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={onboardingData.region} onChange={e => setOnboardingData({...onboardingData, region: e.target.value})}>
+                    {["Bakı", "Sumqayıt", "Gəncə", "Mingəçevir", "Şirvan", "Lənkəran", "Şəki", "Quba", "Digər"].map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Təhsil Müəssisəsi (istəyə bağlı)</label>
+                  <input type="text" className="w-full border border-border rounded-xl py-3 px-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={onboardingData.education} onChange={e => setOnboardingData({...onboardingData, education: e.target.value})} placeholder="Universitet / Məktəb" />
+                </div>
+
+                <button 
+                  onClick={saveOnboarding}
+                  disabled={isOnboardingLoading}
+                  className="w-full bg-primary text-white rounded-xl py-4 font-semibold hover:bg-primary-hover transition-colors mt-6"
+                >
+                  {isOnboardingLoading ? "Yadda Saxlanılır..." : "Tamamla və Davam Et"}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

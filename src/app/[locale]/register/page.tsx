@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, Mail, Lock, User, Phone, MapPin, GraduationCap } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { MOCK_AUTH } from "@/lib/mock-auth";
+import { createClient } from "@/lib/supabase/client";
 
 const REGIONS = [
   "Bakı", "Sumqayıt", "Gəncə", "Mingəçevir", "Şirvan", "Lənkəran", "Şəki", "Quba", "Digər"
@@ -18,33 +18,92 @@ export default function RegisterPage() {
     lastName: "",
     email: "",
     password: "",
-    phone: "",
+    confirmPassword: "",
+    phone: "+994 ",
     region: "Bakı",
     education: ""
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [success, setSuccess] = useState(false);
+  const supabase = createClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    // Basic mask for +994 (XX) XXX-XX-XX
+    if (!val.startsWith("+994 ")) {
+      val = "+994 ";
+    }
+    // Remove all non-digit characters except the +994 prefix
+    const numbers = val.substring(5).replace(/\D/g, "");
     
-    setTimeout(() => {
-      MOCK_AUTH.login(formData);
-      router.push("/dashboard");
-    }, 1500);
+    let formatted = "+994 ";
+    if (numbers.length > 0) {
+      formatted += "(" + numbers.substring(0, 2);
+    }
+    if (numbers.length >= 2) {
+      formatted += ") " + numbers.substring(2, 5);
+    }
+    if (numbers.length >= 5) {
+      formatted += "-" + numbers.substring(5, 7);
+    }
+    if (numbers.length >= 7) {
+      formatted += "-" + numbers.substring(7, 9);
+    }
+    setFormData({ ...formData, phone: formatted });
   };
 
-  const handleGoogleLogin = () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMsg("Şifrələr uyğun gəlmir.");
+      return;
+    }
+    if (formData.password.length < 6) {
+      setErrorMsg("Şifrə minimum 6 simvol olmalıdır.");
+      return;
+    }
+    // Basic phone length check
+    if (formData.phone.length < 19) {
+      setErrorMsg("Telefon nömrəsini tam daxil edin.");
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
-      MOCK_AUTH.login({
-        firstName: "Google",
-        lastName: "User",
-        email: "user@gmail.com",
-        region: "Bakı"
-      });
-      router.push("/dashboard");
-    }, 1000);
+    const { error } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        data: {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          phone: formData.phone,
+          region: formData.region,
+          education: formData.education
+        },
+        emailRedirectTo: `${window.location.origin}/dashboard`
+      }
+    });
+
+    setIsLoading(false);
+
+    if (error) {
+      setErrorMsg(error.message);
+    } else {
+      setSuccess(true);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
   };
 
   return (
@@ -79,11 +138,25 @@ export default function RegisterPage() {
           Google ilə qeydiyyatdan keç
         </button>
 
-        <div className="flex items-center gap-4 mb-6">
-          <div className="h-px bg-border flex-1" />
-          <span className="text-sm text-muted-foreground font-medium">və ya e-poçtla</span>
-          <div className="h-px bg-border flex-1" />
-        </div>
+        {success ? (
+          <div className="bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 p-6 rounded-2xl text-center">
+            <Mail className="w-12 h-12 mx-auto mb-4 opacity-80" />
+            <h3 className="text-xl font-bold mb-2">E-poçtunuzu yoxlayın</h3>
+            <p>Zəhmət olmasa e-poçtunuza göndərilən link vasitəsilə hesabınızı təsdiqləyin.</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="h-px bg-border flex-1" />
+              <span className="text-sm text-muted-foreground font-medium">və ya e-poçtla</span>
+              <div className="h-px bg-border flex-1" />
+            </div>
+
+            {errorMsg && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm mb-6">
+                {errorMsg}
+              </div>
+            )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -113,7 +186,7 @@ export default function RegisterPage() {
               <label className="text-sm font-medium">Telefon</label>
               <div className="relative">
                 <Phone className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
-                <input required type="tel" className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" placeholder="+994 (00) 000-00-00" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                <input required type="tel" className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" placeholder="+994 (00) 000-00-00" value={formData.phone} onChange={handlePhoneChange} maxLength={19} />
               </div>
             </div>
             <div className="space-y-2">
@@ -135,11 +208,20 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Şifrə</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
-              <input required type="password" minLength={6} className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Şifrə</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
+                <input required type="password" minLength={6} className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Şifrə Təkrarı</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
+                <input required type="password" minLength={6} className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" placeholder="••••••••" value={formData.confirmPassword} onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})} />
+              </div>
             </div>
           </div>
 
@@ -151,6 +233,8 @@ export default function RegisterPage() {
             {isLoading ? "Yüklənir..." : "Qeydiyyatı Tamamla"} {!isLoading && <ArrowRight className="w-5 h-5" />}
           </button>
         </form>
+          </>
+        )}
 
         <p className="text-center mt-8 text-sm text-muted-foreground">
           Artıq hesabınız var? <Link href="/login" className="text-primary hover:underline font-semibold">Daxil olun</Link>

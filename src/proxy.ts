@@ -1,22 +1,51 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
 const locales = ['az', 'en', 'ru']
 const defaultLocale = 'az'
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+
   const { pathname } = request.nextUrl
   
-  // Skip public files and API routes
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
-    pathname.includes('.')
+    pathname.includes('.') ||
+    pathname.startsWith('/auth/callback')
   ) {
-    return
+    return response
   }
 
-  // Check if the pathname already has a locale
   const pathnameHasLocale = locales.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   )
@@ -26,19 +55,28 @@ export function proxy(request: NextRequest) {
     localeToUse = pathname.split('/')[1]
   }
 
-  // Route Protection for /dashboard
   const isDashboard = pathname.includes('/dashboard')
-  const hasAuth = request.cookies.has('auth-token')
 
-  if (isDashboard && !hasAuth) {
+  // Auth protection
+  if (isDashboard && !user) {
     return NextResponse.redirect(new URL(`/${localeToUse}/login`, request.url))
   }
+  
+  // Disable going to login/register if already logged in
+  if ((pathname.includes('/login') || pathname.includes('/register')) && user) {
+     return NextResponse.redirect(new URL(`/${localeToUse}/dashboard`, request.url))
+  }
 
-  if (pathnameHasLocale) return
+  if (pathnameHasLocale) return response
 
-  // Redirect if there is no locale
   request.nextUrl.pathname = `/${defaultLocale}${pathname}`
-  return NextResponse.redirect(request.nextUrl)
+  const redirectResponse = NextResponse.redirect(request.nextUrl)
+  
+  // Preserve cookies
+  response.cookies.getAll().forEach(cookie => {
+      redirectResponse.cookies.set(cookie.name, cookie.value)
+  })
+  return redirectResponse
 }
 
 export const config = {

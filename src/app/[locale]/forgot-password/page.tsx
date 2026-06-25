@@ -4,24 +4,32 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const supabase = createClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMsg("");
     
-    // Simulate network delay for sending email
-    setTimeout(() => {
-      setIsLoading(false);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    setIsLoading(false);
+
+    if (error) {
+      setErrorMsg(error.message);
+    } else {
       setIsSent(true);
-      
-      // Auto-hide toast after 5 seconds
       setTimeout(() => setIsSent(false), 5000);
-    }, 1500);
+    }
   };
 
   return (
@@ -48,6 +56,12 @@ export default function ForgotPasswordPage() {
           <h1 className="text-3xl font-bold mb-2">Şifrəni Unutmusan?</h1>
           <p className="text-muted-foreground">Narahat olmayın. E-poçt ünvanınızı daxil edin və şifrəni sıfırlamaq üçün link göndərək.</p>
         </div>
+
+        {errorMsg && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm mb-6 text-center">
+            {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 relative">
           <div className="space-y-2">

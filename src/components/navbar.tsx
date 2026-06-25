@@ -5,20 +5,38 @@ import { ThemeToggle } from "./theme-toggle";
 import { usePathname } from "next/navigation";
 import { Locale } from "@/lib/i18n";
 import { useEffect, useState } from "react";
-import { MOCK_AUTH } from "@/lib/mock-auth";
+import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n-context";
 
 export function Navbar({ locale }: { locale?: Locale }) {
   const pathname = usePathname();
   const currentLang = locale || "az";
+  const [user, setUser] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
-  const [session, setSession] = useState<any>(null);
   const { t } = useTranslation();
+  const supabase = createClient();
 
   useEffect(() => {
     setMounted(true);
-    setSession(MOCK_AUTH.getSession());
+    
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    };
+    
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = `/${currentLang}/login`;
+  };
 
   const changeLanguage = (newLocale: string) => {
     if (!pathname) return `/${newLocale}`;
@@ -70,19 +88,27 @@ export function Navbar({ locale }: { locale?: Locale }) {
             <Link href={mounted ? changeLanguage('ru') : '#'} className={`hover:text-primary transition-colors ${currentLang === 'ru' ? 'text-primary font-bold' : 'text-gray-500'}`}>RU</Link>
           </div>
           <ThemeToggle />
-          {session ? (
-            <Link 
-              href={`/${currentLang}/dashboard`}
-              className="hidden sm:flex px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-full transition-colors shadow-sm"
-            >
-              {t('navbar.dashboard')}
-            </Link>
+          {user ? (
+            <div className="hidden sm:flex items-center gap-2">
+              <Link 
+                href={`/${currentLang}/dashboard`}
+                className="px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-full transition-colors"
+              >
+                {user.user_metadata?.first_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name?.charAt(0) || ''}.` : t('navbar.dashboard')}
+              </Link>
+              <button 
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
+              >
+                Çıxış
+              </button>
+            </div>
           ) : (
             <Link 
               href={`/${currentLang}/login`}
               className="hidden sm:flex px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-full transition-colors shadow-sm"
             >
-              {t('navbar.dashboard')}
+              {t('navbar.login') || "Daxil ol"}
             </Link>
           )}
         </div>
