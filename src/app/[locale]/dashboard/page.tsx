@@ -38,9 +38,10 @@ export default function DashboardPage() {
   const [isOnboardingLoading, setIsOnboardingLoading] = useState(false);
   
   // Password Update State
-  const [passwordData, setPasswordData] = useState({ newPassword: "", confirmPassword: "" });
+  const [passwordData, setPasswordData] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordUpdateSuccess, setPasswordUpdateSuccess] = useState(false);
+  const [passwordUpdateError, setPasswordUpdateError] = useState("");
 
   // Delete Account State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -166,19 +167,49 @@ export default function DashboardPage() {
   };
 
   const handleUpdatePassword = async () => {
-    if (passwordData.newPassword.length < 6) return alert("Şifrə minimum 6 simvol olmalıdır.");
-    if (passwordData.newPassword !== passwordData.confirmPassword) return alert("Şifrələr uyğun gəlmir.");
+    setPasswordUpdateError("");
+    setPasswordUpdateSuccess(false);
+
+    if (!passwordData.currentPassword) {
+      setPasswordUpdateError("Mövcud şifrəni daxil edin.");
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      setPasswordUpdateError("Yeni şifrə minimum 6 simvol olmalıdır.");
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordUpdateError("Şifrələr uyğun gəlmir.");
+      return;
+    }
+    if (passwordData.currentPassword === passwordData.newPassword) {
+      setPasswordUpdateError("Yeni şifrə mövcud şifrənizlə eyni ola bilməz.");
+      return;
+    }
     
     setIsUpdatingPassword(true);
-    setPasswordUpdateSuccess(false);
-    const { error } = await supabase.auth.updateUser({ password: passwordData.newPassword });
+
+    // 1. Verify Current Password via SignIn
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: session.user.email,
+      password: passwordData.currentPassword,
+    });
+
+    if (signInError) {
+      setIsUpdatingPassword(false);
+      setPasswordUpdateError("Şifrəniz yanlışdır.");
+      return;
+    }
+
+    // 2. Password is correct. Update to new password.
+    const { error: updateError } = await supabase.auth.updateUser({ password: passwordData.newPassword });
     setIsUpdatingPassword(false);
 
-    if (error) {
-      alert("Şifrə yenilənərkən xəta baş verdi: " + error.message);
+    if (updateError) {
+      setPasswordUpdateError("Şifrə yenilənərkən xəta baş verdi: " + updateError.message);
     } else {
       setPasswordUpdateSuccess(true);
-      setPasswordData({ newPassword: "", confirmPassword: "" });
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setTimeout(() => setPasswordUpdateSuccess(false), 5000);
     }
   };
@@ -652,7 +683,7 @@ export default function DashboardPage() {
                     <h4 className="text-xl font-bold mb-4 flex items-center gap-2">
                       <Zap className="w-5 h-5 text-primary" /> Şifrəni Yenilə
                     </h4>
-                    <p className="text-sm text-muted-foreground mb-6">Mövcud şifrənizi dəyişdirmək və ya Google hesabınızdan asılı olmamaq üçün yeni şifrə təyin edə bilərsiniz.</p>
+                    <p className="text-sm text-muted-foreground mb-6">Mövcud şifrənizi dəyişdirmək üçün yeni şifrə təyin edə bilərsiniz.</p>
                     
                     <AnimatePresence>
                       {passwordUpdateSuccess && (
@@ -663,24 +694,44 @@ export default function DashboardPage() {
                           className="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-600 flex items-center gap-3 overflow-hidden"
                         >
                           <CheckCircle2 className="w-5 h-5 shrink-0" />
-                          <span className="font-medium text-sm">Şifrəniz uğurla yeniləndi!</span>
+                          <span className="font-medium text-sm">Şifrəniz uğurla yeniləndi.</span>
+                        </motion.div>
+                      )}
+                      {passwordUpdateError && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0, y: -10 }}
+                          animate={{ opacity: 1, height: "auto", y: 0 }}
+                          exit={{ opacity: 0, height: 0, y: -10 }}
+                          className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 flex items-center gap-3 overflow-hidden"
+                        >
+                          <AlertTriangle className="w-5 h-5 shrink-0" />
+                          <span className="font-medium text-sm">{passwordUpdateError}</span>
                         </motion.div>
                       )}
                     </AnimatePresence>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-sm font-medium">Mövcud Şifrə</label>
+                        <input type="password" placeholder="Hazırkı şifrəniz" className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all" value={passwordData.currentPassword} onChange={e => { setPasswordData({...passwordData, currentPassword: e.target.value}); setPasswordUpdateError(""); }} />
+                        <div className="mt-2 text-right">
+                          <Link href="/az/forgot-password" className="text-sm text-primary hover:underline font-medium">
+                            Şifrəni unutmusunuz?
+                          </Link>
+                        </div>
+                      </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Yeni Şifrə</label>
-                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all" value={passwordData.newPassword} onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} />
+                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all" value={passwordData.newPassword} onChange={e => { setPasswordData({...passwordData, newPassword: e.target.value}); setPasswordUpdateError(""); }} />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Şifrəni Təkrarla</label>
-                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all" value={passwordData.confirmPassword} onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})} />
+                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all" value={passwordData.confirmPassword} onChange={e => { setPasswordData({...passwordData, confirmPassword: e.target.value}); setPasswordUpdateError(""); }} />
                       </div>
                       <div className="md:col-span-2">
                         <button 
                           onClick={handleUpdatePassword} 
-                          disabled={isUpdatingPassword || !passwordData.newPassword}
+                          disabled={isUpdatingPassword || !passwordData.currentPassword || !passwordData.newPassword}
                           className="px-8 py-3 rounded-xl bg-primary text-white hover:bg-primary-hover transition-colors font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                           {isUpdatingPassword && <Loader2 className="w-4 h-4 animate-spin" />}

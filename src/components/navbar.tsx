@@ -173,7 +173,7 @@ export function Navbar({ locale }: { locale?: Locale }) {
                 </button>
 
                 {isNotifOpen && (
-                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-background/70 backdrop-blur-2xl border border-border/50 shadow-2xl rounded-2xl overflow-hidden z-50">
+                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-card border border-border shadow-2xl rounded-2xl overflow-hidden z-50">
                     <div className="p-4 border-b border-border/50 bg-muted/10 flex items-center justify-between">
                       <h4 className="font-bold text-sm">Bildirişlər</h4>
                       {unreadCount > 0 && (
