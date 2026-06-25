@@ -6,19 +6,41 @@ import { MapPin, Phone, Mail, Send, ChevronRight, CheckCircle2, X } from "lucide
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslation } from "@/lib/i18n-context";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ContactPage() {
   const params = useParams();
   const locale = params?.locale || "az";
   const { t } = useTranslation();
 
-  const [formData, setFormData] = useState({ name: "", email: "", subject: t('contact.subject1'), message: "" });
-  const [showToast, setShowToast] = useState(false);
+  const supabase = createClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [formData, setFormData] = useState({ name: "", email: "", subject: "Proqramlar və layihələr barədə", message: "" });
+  const [showToast, setShowToast] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+
+    const { error } = await supabase.from("contact_messages").insert([
+      {
+        full_name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message
+      }
+    ]);
+
+    setIsSubmitting(false);
+
+    if (error) {
+      alert("Xəta baş verdi: " + error.message);
+      return;
+    }
+
     setShowToast(true);
-    setFormData({ name: "", email: "", subject: t('contact.subject1'), message: "" });
+    setFormData({ name: "", email: "", subject: "Proqramlar və layihələr barədə", message: "" });
     setTimeout(() => setShowToast(false), 3000);
   };
 
@@ -154,9 +176,12 @@ export default function ContactPage() {
                   value={formData.subject}
                   onChange={(e) => setFormData({...formData, subject: e.target.value})}
                 >
-                  <option>{t('contact.subject1')}</option>
-                  <option>{t('contact.subject2')}</option>
-                  <option>{t('contact.subject3')}</option>
+                  <option>Proqramlar və layihələr barədə</option>
+                  <option>Debat klubları və mərkəzlər barədə</option>
+                  <option>Tərəfdaşlıq təklifi</option>
+                  <option>Texniki dəstək</option>
+                  <option>Təklif və iradlar</option>
+                  <option>Digər</option>
                 </select>
               </div>
 
@@ -174,9 +199,10 @@ export default function ContactPage() {
 
               <button 
                 type="submit"
-                className="w-full bg-primary text-white font-bold rounded-xl py-4 hover:bg-primary-hover transition-colors shadow-md flex items-center justify-center gap-2 group mt-4"
+                disabled={isSubmitting}
+                className="w-full bg-primary text-white font-bold rounded-xl py-4 hover:bg-primary-hover transition-colors shadow-md flex items-center justify-center gap-2 group mt-4 disabled:opacity-50"
               >
-                {t('contact.send')} <Send className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                {isSubmitting ? "Göndərilir..." : t('contact.send')} {!isSubmitting && <Send className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
               </button>
             </form>
           </motion.div>

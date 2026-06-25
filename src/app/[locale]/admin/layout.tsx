@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname, useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { LayoutDashboard, Newspaper, Folders, Video, LogOut, Settings, MapPin, Users, Handshake, BarChart, BookOpen, Bell, History, UserCog } from "lucide-react";
+import { LayoutDashboard, Newspaper, Folders, Video, LogOut, Settings, MapPin, Users, Handshake, BarChart, BookOpen, Bell, History, UserCog, Mail } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -45,6 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const menuItems = [
     { href: `/${locale}/admin`, icon: LayoutDashboard, label: "Statistika" },
     { href: `/${locale}/admin/users`, icon: UserCog, label: "İstifadəçilər" },
+    { href: `/${locale}/admin/messages`, icon: Mail, label: "Gələn Mesajlar" },
     { href: `/${locale}/admin/broadcast`, icon: Bell, label: "Kütləvi Elan" },
     { href: `/${locale}/admin/news`, icon: Newspaper, label: "Xəbərlər" },
     { href: `/${locale}/admin/centers`, icon: MapPin, label: "Mərkəzlər və Klublar" },

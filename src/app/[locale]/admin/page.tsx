@@ -13,7 +13,8 @@ export default function AdminDashboardPage() {
     users: 0,
     activeProjects: 0,
     activeRooms: 0,
-    pendingApps: 0
+    pendingApps: 0,
+    pendingMessages: 0
   });
   const [recentFeed, setRecentFeed] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,18 +22,20 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       // 1. Fetch Stats
-      const [{ count: userCount }, { count: projCount }, { count: roomCount }, { count: appCount }] = await Promise.all([
+      const [{ count: userCount }, { count: projCount }, { count: roomCount }, { count: appCount }, { count: msgCount }] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
         supabase.from('debate_rooms').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'Pending')
+        supabase.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'Pending'),
+        supabase.from('contact_messages').select('*', { count: 'exact', head: true }).eq('status', 'pending')
       ]);
 
       setStats({
         users: userCount || 0,
         activeProjects: projCount || 0,
         activeRooms: roomCount || 0,
-        pendingApps: appCount || 0
+        pendingApps: appCount || 0,
+        pendingMessages: msgCount || 0
       });
 
       // 2. Fetch Recent Activities (Registrations and Applications)
@@ -84,6 +87,7 @@ export default function AdminDashboardPage() {
     { label: "Aktiv Layihələr", value: stats.activeProjects, change: "Canlı", icon: Folder, color: "text-purple-500", bg: "bg-purple-500/10" },
     { label: "Canlı Otaqlar", value: stats.activeRooms, change: "Canlı", icon: Video, color: "text-green-500", bg: "bg-green-500/10" },
     { label: "Gözləyən Müraciətlər", value: stats.pendingApps, change: "Baxılmalıdır", icon: FileText, color: "text-orange-500", bg: "bg-orange-500/10" },
+    { label: "Cavablanmamış Əlaqələr", value: stats.pendingMessages, change: "Baxılmalıdır", icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
   ];
 
   return (
