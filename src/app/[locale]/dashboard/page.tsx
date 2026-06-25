@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, Camera, Plus, X, BookOpen, File as FileIcon, Bot, Zap, Users, Trophy, QrCode, History, Loader2, AlertCircle, Bell, Info, AlertTriangle } from "lucide-react";
+import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, Camera, Plus, X, BookOpen, File as FileIcon, Bot, Zap, Users, Trophy, QrCode, History, Loader2, AlertCircle, Bell, Info, AlertTriangle, Copy } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n-context";
@@ -20,6 +20,7 @@ export default function DashboardPage() {
   // Profile Edit State
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileData, setProfileData] = useState<any>({});
+  const [isCopied, setIsCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Applications State
@@ -68,7 +69,8 @@ export default function DashboardPage() {
           phone: profile.phone || "",
           region: profile.region || "",
           education: profile.education || "",
-          avatar: profile.avatar_url || session.user.user_metadata.avatar_url || null
+          avatar: profile.avatar_url || session.user.user_metadata.avatar_url || null,
+          dvcId: profile.dvc_id || "DVC-YYYYY"
         });
 
         if (!profile.phone || !profile.region) {
@@ -218,6 +220,14 @@ export default function DashboardPage() {
     router.push("/login");
   };
 
+  const copyDvcId = () => {
+    if (profileData.dvcId) {
+      navigator.clipboard.writeText(profileData.dvcId);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, isProfile: boolean) => {
     let val = e.target.value;
     if (!val.startsWith("+994 ")) val = "+994 ";
@@ -298,10 +308,30 @@ export default function DashboardPage() {
                 </div>
                 <input type="file" hidden ref={fileInputRef} onChange={handleAvatarChange} accept="image/*" />
                 <h2 className="text-xl font-bold">{profileData.firstName} {profileData.lastName}</h2>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mt-2 truncate max-w-[200px]">
-                  <span className="w-2 h-2 shrink-0 rounded-full bg-primary animate-pulse" />
-                  {session.user.id.substring(0, 8)}...
-                </span>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wider">
+                    {profileData.dvcId}
+                  </span>
+                  <button 
+                    onClick={copyDvcId} 
+                    className="p-1.5 rounded-full hover:bg-muted text-muted-foreground transition-colors relative"
+                    title="ID Kopyala"
+                  >
+                    {isCopied ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                    <AnimatePresence>
+                      {isCopied && (
+                        <motion.span 
+                          initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                          animate={{ opacity: 1, y: -25, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className="absolute -top-2 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-10"
+                        >
+                          ID kopyalandı!
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                </div>
               </div>
 
               <nav className="space-y-2">
@@ -406,29 +436,6 @@ export default function DashboardPage() {
                       )}
                     </div>
                   </div>
-
-                  {/* Notifications Block */}
-                  {notifications.length > 0 && (
-                    <div className="mt-8 border-t border-border pt-8">
-                      <h4 className="text-xl font-bold mb-4 flex items-center gap-2">
-                        <Bell className="w-5 h-5 text-primary" /> Son Bildirişlər
-                      </h4>
-                      <div className="space-y-4">
-                        {notifications.map(n => (
-                          <div key={n.id} className="p-4 rounded-xl border border-border bg-card flex gap-4 shadow-sm">
-                            <div className={`mt-1 shrink-0 ${n.type === 'success' ? 'text-green-500' : n.type === 'warning' ? 'text-orange-500' : 'text-primary'}`}>
-                              {n.type === 'success' ? <CheckCircle2 className="w-6 h-6" /> : n.type === 'warning' ? <AlertTriangle className="w-6 h-6" /> : <Info className="w-6 h-6" />}
-                            </div>
-                            <div>
-                              <h5 className="font-bold text-lg mb-1">{n.title}</h5>
-                              <p className="text-muted-foreground text-sm whitespace-pre-wrap">{n.content}</p>
-                              <p className="text-xs text-muted-foreground mt-2">{new Date(n.created_at).toLocaleString('az-AZ', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   
                   {/* Action CTAs */}
                   <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-6">

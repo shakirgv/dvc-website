@@ -15,6 +15,7 @@ export function Navbar({ locale }: { locale?: Locale }) {
   const [user, setUser] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [readNotifs, setReadNotifs] = useState<Set<string>>(new Set());
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
@@ -26,7 +27,9 @@ export function Navbar({ locale }: { locale?: Locale }) {
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user || null);
-      if (session?.user) fetchNotifications();
+      if (session?.user) {
+        fetchNotifications(session.user.id);
+      }
     };
     
     getUser();
@@ -41,7 +44,9 @@ export function Navbar({ locale }: { locale?: Locale }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
-      if (session?.user) fetchNotifications();
+      if (session?.user) {
+        fetchNotifications(session.user.id);
+      }
     });
 
     return () => {
@@ -50,11 +55,51 @@ export function Navbar({ locale }: { locale?: Locale }) {
     };
   }, []);
 
-  const fetchNotifications = async () => {
-    // Only fetch last 5 notifications
-    const { data } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(5);
-    if (data) setNotifications(data);
+  const fetchNotifications = async (userId: string) => {
+    // Sadece son 10 bildirişi gətir
+    const { data: notifs } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(10);
+    if (notifs) setNotifications(notifs);
+
+    // Oxunmuş bildirişləri tap
+    const { data: reads } = await supabase.from("notification_reads").select("notification_id").eq("user_id", userId);
+    if (reads) {
+      const readSet = new Set<string>();
+      reads.forEach(r => readSet.add(r.notification_id));
+      setReadNotifs(readSet);
+    }
   };
+
+  const markAsRead = async (notifId: string) => {
+    if (!user || readNotifs.has(notifId)) return;
+    
+    // UI-ı anında yeniləyək
+    setReadNotifs(prev => new Set(prev).add(notifId));
+    
+    // Backend-ə yazaq
+    await supabase.from("notification_reads").insert({
+      user_id: user.id,
+      notification_id: notifId
+    });
+  };
+
+  const markAllAsRead = async () => {
+    if (!user) return;
+    const unreadNotifs = notifications.filter(n => !readNotifs.has(n.id));
+    if (unreadNotifs.length === 0) return;
+
+    // UI-ı anında yeniləyək
+    const newReadSet = new Set(readNotifs);
+    const inserts = unreadNotifs.map(n => {
+      newReadSet.add(n.id);
+      return { user_id: user.id, notification_id: n.id };
+    });
+    setReadNotifs(newReadSet);
+
+    // Backend-ə yazaq
+    await supabase.from("notification_reads").insert(inserts);
+  };
+
+  const unreadCount = notifications.filter(n => !readNotifs.has(n.id)).length;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -120,34 +165,57 @@ export function Navbar({ locale }: { locale?: Locale }) {
                   className="relative p-2 text-muted-foreground hover:bg-muted/50 rounded-full transition-colors"
                 >
                   <Bell className="w-5 h-5" />
-                  {notifications.length > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 flex items-center justify-center min-w-[16px] h-4 bg-primary text-white text-[10px] font-bold rounded-full px-1 shadow-sm">
+                      {unreadCount}
+                    </span>
                   )}
                 </button>
 
                 {isNotifOpen && (
-                  <div className="absolute right-0 mt-2 w-80 bg-card border border-border shadow-lg rounded-2xl overflow-hidden z-50">
-                    <div className="p-4 border-b border-border bg-muted/20">
-                      <h4 className="font-bold">Bildirişlər</h4>
+                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-background/70 backdrop-blur-2xl border border-border/50 shadow-2xl rounded-2xl overflow-hidden z-50">
+                    <div className="p-4 border-b border-border/50 bg-muted/10 flex items-center justify-between">
+                      <h4 className="font-bold text-sm">Bildirişlər</h4>
+                      {unreadCount > 0 && (
+                        <button 
+                          onClick={markAllAsRead}
+                          className="text-xs font-medium text-primary hover:underline transition-all"
+                        >
+                          Hamısını oxunmuş et
+                        </button>
+                      )}
                     </div>
-                    <div className="max-h-[400px] overflow-y-auto">
+                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                       {notifications.length === 0 ? (
-                        <div className="p-6 text-center text-sm text-muted-foreground">Heç bir bildiriş yoxdur.</div>
+                        <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center">
+                          <Bell className="w-8 h-8 opacity-20 mb-2" />
+                          Heç bir bildiriş yoxdur.
+                        </div>
                       ) : (
-                        notifications.map(n => (
-                          <div key={n.id} className="p-4 border-b border-border hover:bg-muted/30 transition-colors flex gap-3">
-                            <div className={`mt-0.5 shrink-0 ${n.type === 'success' ? 'text-green-500' : n.type === 'warning' ? 'text-orange-500' : 'text-primary'}`}>
-                              {n.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : n.type === 'warning' ? <AlertTriangle className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+                        notifications.map(n => {
+                          const isRead = readNotifs.has(n.id);
+                          return (
+                            <div 
+                              key={n.id} 
+                              onClick={() => markAsRead(n.id)}
+                              className={`p-4 border-b border-border/30 transition-all cursor-pointer flex gap-3 ${isRead ? 'opacity-60 bg-transparent' : 'bg-primary/5 hover:bg-primary/10'}`}
+                            >
+                              <div className={`mt-0.5 shrink-0 ${n.type === 'success' ? 'text-green-500' : n.type === 'warning' ? 'text-orange-500' : 'text-primary'}`}>
+                                {n.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : n.type === 'warning' ? <AlertTriangle className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+                              </div>
+                              <div className="flex-1">
+                                <p className={`text-sm mb-1 ${isRead ? 'font-medium text-foreground/80' : 'font-bold text-foreground'}`}>{n.title}</p>
+                                <p className="text-xs text-muted-foreground line-clamp-3">{n.content}</p>
+                                <p className="text-[10px] text-muted-foreground mt-2 font-medium">
+                                  {new Date(n.created_at).toLocaleString('az-AZ', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                              {!isRead && (
+                                <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
+                              )}
                             </div>
-                            <div>
-                              <p className="text-sm font-semibold mb-1">{n.title}</p>
-                              <p className="text-xs text-muted-foreground line-clamp-3">{n.content}</p>
-                              <p className="text-[10px] text-muted-foreground mt-2 font-medium">
-                                {new Date(n.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </div>
                   </div>
