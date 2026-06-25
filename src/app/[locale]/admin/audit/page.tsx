@@ -29,7 +29,23 @@ export default function AdminAuditPage() {
     fetchLogs();
   }, []);
 
-  const uniqueCategories = Array.from(new Set(logs.map(log => log.details?.category).filter(Boolean)));
+  const BASE_CATEGORIES = [
+    "Users",
+    "Messages",
+    "Broadcast",
+    "News",
+    "Centers",
+    "Team",
+    "Programs",
+    "Projects",
+    "Form Builder",
+    "Rooms",
+    "Partners",
+    "Stats"
+  ];
+  const dynamicCategories = Array.from(new Set(logs.map(log => log.details?.category).filter(Boolean)));
+  const uniqueCategories = Array.from(new Set([...BASE_CATEGORIES, ...dynamicCategories]));
+  
   const uniqueAdmins = Array.from(new Set(logs.map(log => log.admin_email).filter(Boolean)));
 
   const filteredLogs = logs.filter(log => {
