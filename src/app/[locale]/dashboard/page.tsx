@@ -7,6 +7,7 @@ import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, 
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n-context";
+import { AZERBAIJAN_REGIONS } from "@/lib/regions";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -343,7 +344,7 @@ export default function DashboardPage() {
                       <label className="text-sm text-muted-foreground">Region</label>
                       {isEditingProfile ? (
                         <select className="w-full border border-border rounded-lg p-2.5 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={profileData.region} onChange={e => setProfileData({...profileData, region: e.target.value})}>
-                          {["Bakı", "Sumqayıt", "Gəncə", "Mingəçevir", "Şirvan", "Lənkəran", "Şəki", "Quba", "Digər"].map(r => <option key={r} value={r}>{r}</option>)}
+                          {AZERBAIJAN_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                       ) : (
                         <p className="font-medium text-lg border border-transparent p-2.5 pl-0">{profileData.region}</p>
@@ -717,7 +718,7 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Region</label>
                   <select className="w-full border border-border rounded-xl py-3 px-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={onboardingData.region} onChange={e => setOnboardingData({...onboardingData, region: e.target.value})}>
-                    {["Bakı", "Sumqayıt", "Gəncə", "Mingəçevir", "Şirvan", "Lənkəran", "Şəki", "Quba", "Digər"].map(r => <option key={r} value={r}>{r}</option>)}
+                    {AZERBAIJAN_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">

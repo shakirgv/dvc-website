@@ -6,10 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Mail, Lock, User, Phone, MapPin, GraduationCap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-
-const REGIONS = [
-  "Bakı", "Sumqayıt", "Gəncə", "Mingəçevir", "Şirvan", "Lənkəran", "Şəki", "Quba", "Digər"
-];
+import { AZERBAIJAN_REGIONS } from "@/lib/regions";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -194,7 +191,7 @@ export default function RegisterPage() {
               <div className="relative">
                 <MapPin className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
                 <select className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none transition-shadow" value={formData.region} onChange={(e) => setFormData({...formData, region: e.target.value})}>
-                  {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  {AZERBAIJAN_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
             </div>

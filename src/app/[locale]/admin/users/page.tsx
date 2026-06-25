@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Download, Shield, ShieldOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { logAdminAction } from "@/lib/audit-logger";
+import { AZERBAIJAN_REGIONS } from "@/lib/regions";
 
 export default function AdminUsersPage() {
   const supabase = createClient();
@@ -111,9 +112,7 @@ export default function AdminUsersPage() {
             onChange={e => setRegionFilter(e.target.value)}
           >
             <option value="all">Bütün Regionlar</option>
-            <option value="Bakı">Bakı</option>
-            <option value="Sumqayıt">Sumqayıt</option>
-            <option value="Gəncə">Gəncə</option>
+            {AZERBAIJAN_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
 
