@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Download, Shield, ShieldOff, Loader2 } from "lucide-react";
+import { Search, Download, Shield, ShieldOff, Loader2, FileSpreadsheet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import * as XLSX from "xlsx";
 import { logAdminAction } from "@/lib/audit-logger";
 import { AZERBAIJAN_REGIONS } from "@/lib/regions";
 
@@ -70,6 +71,26 @@ export default function AdminUsersPage() {
     link.remove();
   };
 
+  const exportToExcel = () => {
+    const headers = ["Ad", "Soyad", "Telefon", "Region", "Təhsil", "Rol", "Qeydiyyat Tarixi"];
+    const excelData = filteredUsers.map(u => ({
+      "Ad": u.first_name || "-",
+      "Soyad": u.last_name || "-",
+      "Telefon": u.phone || "-",
+      "Region": u.region || "-",
+      "Təhsil": u.education || "-",
+      "Rol": u.role || "user",
+      "Qeydiyyat Tarixi": new Date(u.created_at).toLocaleDateString()
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData, { header: headers });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "İstifadəçilər");
+    
+    // Generate buffer
+    XLSX.writeFile(workbook, `istifadeciler_${new Date().toLocaleDateString()}.xlsx`);
+  };
+
   const filteredUsers = users.filter(u => {
     const matchesSearch = (u.first_name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) || 
                           (u.last_name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
@@ -85,12 +106,20 @@ export default function AdminUsersPage() {
           <h1 className="text-3xl font-bold">İstifadəçilər</h1>
           <p className="text-muted-foreground mt-1">Sistemdə qeydiyyatdan keçmiş bütün istifadəçilərin idarə edilməsi.</p>
         </div>
-        <button 
-          onClick={exportToCSV}
-          className="flex items-center gap-2 px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 font-medium rounded-xl transition-colors"
-        >
-          <Download className="w-5 h-5" /> CSV Export
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={exportToCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 font-medium rounded-xl transition-colors"
+          >
+            <Download className="w-5 h-5" /> CSV
+          </button>
+          <button 
+            onClick={exportToExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 font-medium rounded-xl transition-colors"
+          >
+            <FileSpreadsheet className="w-5 h-5" /> Excel
+          </button>
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
