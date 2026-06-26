@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Download, Shield, ShieldOff, Loader2, FileSpreadsheet } from "lucide-react";
+import { Search, Download, Loader2, FileSpreadsheet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import * as XLSX from "xlsx";
-import { logAdminAction } from "@/lib/audit-logger";
 import { AZERBAIJAN_REGIONS } from "@/lib/regions";
 
 export default function AdminUsersPage() {
@@ -25,38 +24,32 @@ export default function AdminUsersPage() {
     fetchUsers();
   }, []);
 
-  const handleRoleChange = async (userId: string, currentRole: string) => {
-    const newRole = currentRole === "admin" ? "user" : "admin";
-    const confirmChange = confirm(`Bu istifadəçinin rolunu '${newRole}' olaraq dəyişmək istədiyinizə əminsiniz?`);
-    
-    if (confirmChange) {
-      const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", userId);
-      
-      if (error) {
-        alert("Rol dəyişdirilərkən xəta baş verdi: " + error.message);
-      } else {
-        alert("Rol uğurla dəyişdirildi.");
-        fetchUsers();
-        
-        // Log the action
-        await logAdminAction(`İstifadəçi rolu dəyişdirildi (ID: ${userId}) -> ${newRole}`, "Users");
-      }
-    }
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
   };
 
   const exportToCSV = () => {
-    const headers = ["Ad", "Soyad", "Telefon", "Region", "Təhsil", "Rol", "Qeydiyyat Tarixi"];
+    const headers = ["DVC ID", "Ad", "Soyad", "E-poçt", "Telefon", "Region", "Təhsil", "Rol", "Qeydiyyat Tarixi"];
     const csvContent = [
       headers.join(","),
-      ...users.map(u => 
+      ...filteredUsers.map(u => 
         [
+          u.dvc_id || "-",
           u.first_name || "-",
           u.last_name || "-",
+          u.email || "-",
           u.phone || "-",
           u.region || "-",
           u.education || "-",
           u.role || "user",
-          new Date(u.created_at).toLocaleDateString()
+          formatDateTime(u.created_at)
         ].map(e => `"${e}"`).join(",")
       )
     ].join("\n");
@@ -72,15 +65,17 @@ export default function AdminUsersPage() {
   };
 
   const exportToExcel = () => {
-    const headers = ["Ad", "Soyad", "Telefon", "Region", "Təhsil", "Rol", "Qeydiyyat Tarixi"];
+    const headers = ["DVC ID", "Ad", "Soyad", "E-poçt", "Telefon", "Region", "Təhsil", "Rol", "Qeydiyyat Tarixi"];
     const excelData = filteredUsers.map(u => ({
+      "DVC ID": u.dvc_id || "-",
       "Ad": u.first_name || "-",
       "Soyad": u.last_name || "-",
+      "E-poçt": u.email || "-",
       "Telefon": u.phone || "-",
       "Region": u.region || "-",
       "Təhsil": u.education || "-",
       "Rol": u.role || "user",
-      "Qeydiyyat Tarixi": new Date(u.created_at).toLocaleDateString()
+      "Qeydiyyat Tarixi": formatDateTime(u.created_at)
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData, { header: headers });
@@ -150,12 +145,14 @@ export default function AdminUsersPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-muted/50 text-muted-foreground text-sm border-b border-border">
+                <th className="p-4 font-medium">DVC ID</th>
                 <th className="p-4 font-medium">Ad / Soyad</th>
+                <th className="p-4 font-medium">E-poçt</th>
                 <th className="p-4 font-medium">Telefon</th>
                 <th className="p-4 font-medium">Region</th>
                 <th className="p-4 font-medium">Təhsil</th>
                 <th className="p-4 font-medium">Rol</th>
-                <th className="p-4 font-medium text-right">Əməliyyat</th>
+                <th className="p-4 font-medium">Qeydiyyat Tarixi</th>
               </tr>
             </thead>
             <tbody>
@@ -172,9 +169,11 @@ export default function AdminUsersPage() {
               ) : (
                 filteredUsers.map((user) => (
                   <tr key={user.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                    <td className="p-4 font-mono font-medium text-primary">{user.dvc_id || "-"}</td>
                     <td className="p-4 font-medium">
                       {user.first_name || "-"} {user.last_name || ""}
                     </td>
+                    <td className="p-4 text-muted-foreground">{user.email || "-"}</td>
                     <td className="p-4 text-muted-foreground">{user.phone || "-"}</td>
                     <td className="p-4">{user.region || "-"}</td>
                     <td className="p-4 text-sm text-muted-foreground">{user.education || "-"}</td>
@@ -185,22 +184,7 @@ export default function AdminUsersPage() {
                         {user.role === 'admin' ? 'Admin' : 'User'}
                       </span>
                     </td>
-                    <td className="p-4 text-right">
-                      <button 
-                        onClick={() => handleRoleChange(user.id, user.role || 'user')}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                          user.role === 'admin' 
-                            ? 'text-orange-600 hover:bg-orange-500/10' 
-                            : 'text-primary hover:bg-primary/10'
-                        }`}
-                      >
-                        {user.role === 'admin' ? (
-                          <><ShieldOff className="w-4 h-4" /> Adminlikdən Çıxar</>
-                        ) : (
-                          <><Shield className="w-4 h-4" /> Admin Et</>
-                        )}
-                      </button>
-                    </td>
+                    <td className="p-4 text-sm text-muted-foreground">{formatDateTime(user.created_at)}</td>
                   </tr>
                 ))
               )}
