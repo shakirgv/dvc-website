@@ -20,7 +20,7 @@ export default function RoomsLobbyPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   
-  const [newRoom, setNewRoom] = useState({ name: "", topic: "", maxParticipants: "4", type: "public", code: "" });
+  const [newRoom, setNewRoom] = useState({ name: "", topic: "", maxParticipants: "4", type: "public", code: "", lang: "az" });
 
   // Password Modal
   const [selectedPrivateRoom, setSelectedPrivateRoom] = useState<any>(null);
@@ -90,7 +90,8 @@ export default function RoomsLobbyPage() {
       room_code: newRoom.type === 'private' ? newRoom.code : null,
       creator_id: session.user.id,
       is_official: false,
-      status: 'waiting'
+      status: 'waiting',
+      lang: newRoom.lang
     }).select().single();
     
     if (data && !error) {
@@ -262,6 +263,15 @@ export default function RoomsLobbyPage() {
                     <option value="2">2 nəfər (Təkbətək)</option>
                     <option value="4">4 nəfər (Komanda)</option>
                     <option value="6">6 nəfər (Qrup)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Debat Dili</label>
+                  <select className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={newRoom.lang} onChange={(e) => setNewRoom({...newRoom, lang: e.target.value})}>
+                    <option value="az">Azərbaycan</option>
+                    <option value="en">İngilis</option>
+                    <option value="ru">Rus</option>
                   </select>
                 </div>
 
