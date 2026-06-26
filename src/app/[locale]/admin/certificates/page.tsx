@@ -5,6 +5,8 @@ import { Plus, Trash2, Award, X, Upload, Loader2, FileText } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { logAdminAction } from "@/lib/audit-logger";
+import { PDFDocument } from 'pdf-lib';
+import QRCode from 'qrcode';
 
 interface CertificateItem {
   id: string;
@@ -32,10 +34,10 @@ export default function AdminCertificatesPage() {
   const [formData, setFormData] = useState({
     type: "participation",
     program_name: "",
-    pdf_url: "",
   });
   const [targetType, setTargetType] = useState("dvc_id");
   const [targetInput, setTargetInput] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
   useEffect(() => {
@@ -69,44 +71,22 @@ export default function AdminCertificatesPage() {
     setFormData({
       type: "participation",
       program_name: "",
-      pdf_url: "",
     });
     setTargetType("dvc_id");
     setTargetInput("");
+    setSelectedFile(null);
     setIsModalOpen(true);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
-    
-    setUploadingFile(true);
-
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `certificates/${fileName}`;
-
-    // Upload to dvc_images
-    const { error: uploadError } = await supabase.storage
-      .from("dvc_images")
-      .upload(filePath, file);
-
-    if (uploadError) {
-      alert("Fayl yüklənərkən xəta baş verdi: " + uploadError.message);
-      setUploadingFile(false);
-      return;
-    }
-
-    const { data } = supabase.storage.from("dvc_images").getPublicUrl(filePath);
-    if (data?.publicUrl) {
-      setFormData(prev => ({ ...prev, pdf_url: data.publicUrl }));
-    }
-    setUploadingFile(false);
+    setSelectedFile(file);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.program_name || !formData.pdf_url || !targetInput) {
+    if (!formData.program_name || !selectedFile || !targetInput) {
       return alert("Bütün xanaları doldurun və PDF yükləyin.");
     }
 
@@ -140,12 +120,66 @@ export default function AdminCertificatesPage() {
     const nextNumber = (count || 0) + 1;
     const certId = `${prefix}${String(nextNumber).padStart(4, '0')}`;
 
+    // --- QR CODE & PDF GENERATION ---
+    setUploadingFile(true);
+    let finalPdfUrl = "";
+    try {
+      // 1. Generate QR Code Data URI
+      const verifyUrl = `https://dvc.az/az/verify/${certId}`;
+      const qrImageUri = await QRCode.toDataURL(verifyUrl, { margin: 1, scale: 5 });
+
+      // 2. Read Original PDF
+      const pdfBytes = await selectedFile.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(pdfBytes);
+
+      // 3. Embed QR Code
+      const qrImage = await pdfDoc.embedPng(qrImageUri);
+      const pages = pdfDoc.getPages();
+      const firstPage = pages[0];
+      const { width, height } = firstPage.getSize();
+      
+      // Draw at bottom right (x: width - 120, y: 30)
+      const qrSize = 100;
+      firstPage.drawImage(qrImage, {
+        x: width - qrSize - 30,
+        y: 30,
+        width: qrSize,
+        height: qrSize,
+      });
+
+      // 4. Save and Upload
+      const modifiedPdfBytes = await pdfDoc.save();
+      const modifiedFile = new Blob([modifiedPdfBytes as any], { type: 'application/pdf' });
+      
+      const fileExt = selectedFile.name.split('.').pop() || 'pdf';
+      const fileName = `${certId}_${Date.now()}.${fileExt}`;
+      const filePath = `certificates/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("dvc_images")
+        .upload(filePath, modifiedFile);
+
+      if (uploadError) throw new Error(uploadError.message);
+
+      const { data: urlData } = supabase.storage.from("dvc_images").getPublicUrl(filePath);
+      if (!urlData?.publicUrl) throw new Error("Could not get public URL");
+      
+      finalPdfUrl = urlData.publicUrl;
+
+    } catch (err: any) {
+      alert("PDF emal edilərkən xəta baş verdi: " + err.message);
+      setUploadingFile(false);
+      setIsSaving(false);
+      return;
+    }
+    setUploadingFile(false);
+
     const payload = {
       cert_id: certId,
       user_id: targetUserId,
       type: formData.type,
       program_name: formData.program_name,
-      pdf_url: formData.pdf_url
+      pdf_url: finalPdfUrl
     };
 
     const { data, error } = await supabase
@@ -340,10 +374,9 @@ export default function AdminCertificatesPage() {
                     <input 
                       required
                       type="text"
-                      placeholder="URL avtomatik görünəcək"
+                      placeholder={selectedFile ? selectedFile.name : "Fayl seçilməyib"}
                       readOnly
                       className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 opacity-70"
-                      value={formData.pdf_url}
                     />
                     
                     <label className="flex items-center justify-center px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl cursor-pointer hover:bg-primary/20 transition-colors shrink-0">
