@@ -56,6 +56,7 @@ export default function AdminMessagesPage() {
   const filteredMessages = messages.filter(m => {
     const matchesSearch = (m.full_name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) || 
                           (m.email?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+                          (m.phone_number?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
                           (m.message?.toLowerCase() || "").includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || m.status === statusFilter;
     const matchesSubject = subjectFilter === "all" || m.subject === subjectFilter;
@@ -78,7 +79,7 @@ export default function AdminMessagesPage() {
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input 
               type="text" 
-              placeholder="Ad, E-poçt və ya Mesaj mətni ilə axtar..." 
+              placeholder="Ad, E-poçt, Nömrə və ya Mesaj mətni ilə axtar..." 
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -118,9 +119,10 @@ export default function AdminMessagesPage() {
               <div key={msg.id} className={`p-6 transition-colors ${msg.status === 'pending' ? 'bg-primary/5' : 'bg-card hover:bg-muted/30'}`}>
                 <div className="flex flex-col md:flex-row justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <h3 className="font-bold text-lg">{msg.full_name}</h3>
                       <a href={`mailto:${msg.email}`} className="text-sm text-primary hover:underline">{msg.email}</a>
+                      {msg.phone_number && <span className="text-sm text-muted-foreground">• {msg.phone_number}</span>}
                       <span className="text-xs text-muted-foreground">• {new Date(msg.created_at).toLocaleString('az-AZ')}</span>
                     </div>
                     <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground mb-3">

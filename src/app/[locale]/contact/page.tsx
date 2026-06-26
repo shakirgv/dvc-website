@@ -15,7 +15,7 @@ export default function ContactPage() {
 
   const supabase = createClient();
 
-  const [formData, setFormData] = useState({ name: "", email: "", subject: "Proqramlar və layihələr barədə", message: "" });
+  const [formData, setFormData] = useState({ name: "", email: "", phone_number: "", subject: "Proqramlar və layihələr barədə", message: "" });
   const [showToast, setShowToast] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -27,6 +27,7 @@ export default function ContactPage() {
       {
         full_name: formData.name,
         email: formData.email,
+        phone_number: formData.phone_number,
         subject: formData.subject,
         message: formData.message
       }
@@ -40,7 +41,7 @@ export default function ContactPage() {
     }
 
     setShowToast(true);
-    setFormData({ name: "", email: "", subject: "Proqramlar və layihələr barədə", message: "" });
+    setFormData({ name: "", email: "", phone_number: "", subject: "Proqramlar və layihələr barədə", message: "" });
     setTimeout(() => setShowToast(false), 3000);
   };
 
@@ -166,6 +167,17 @@ export default function ContactPage() {
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   className="w-full bg-background border border-border rounded-xl py-3.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   placeholder={t('contact.emailPlaceholder')}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">TELEFON NÖMRƏSİ</label>
+                <input 
+                  type="tel" 
+                  value={formData.phone_number}
+                  onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                  className="w-full bg-background border border-border rounded-xl py-3.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  placeholder="+994 (50) 000-00-00"
                 />
               </div>
 
