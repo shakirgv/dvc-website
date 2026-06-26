@@ -1,44 +1,72 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2, Search, Power, ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Trash2, Search, Power, ShieldCheck, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 
 export default function AdminRoomsPage() {
-  const [rooms, setRooms] = useState([
-    { id: "official-1", name: "Milli Turnir: Yarımfinal", topic: "Süni İntellekt Təhsil Sisteminə Zərərlidir", maxParticipants: 20, isOfficial: true, status: "Active" },
-    { id: "official-2", name: "Həftəlik Debat", topic: "Karbondioksid vergiləri artırılmalıdır", maxParticipants: 10, isOfficial: true, status: "Offline" },
-  ]);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newRoom, setNewRoom] = useState({ name: "", topic: "", maxParticipants: 4 });
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const toggleStatus = (id: string) => {
-    setRooms(rooms.map(r => r.id === id ? { ...r, status: r.status === "Active" ? "Offline" : "Active" } : r));
+  useEffect(() => {
+    fetchRooms();
+  }, []);
+
+  const fetchRooms = async () => {
+    setIsLoading(true);
+    const { data } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('is_official', true)
+      .order('created_at', { ascending: false });
+      
+    if (data) setRooms(data);
+    setIsLoading(false);
   };
 
-  const handleDelete = (id: string) => {
+  const toggleStatus = async (room: any) => {
+    const newStatus = room.status === "active" ? "waiting" : "active";
+    await supabase.from('rooms').update({ status: newStatus }).eq('id', room.id);
+    fetchRooms();
+  };
+
+  const handleDelete = async (id: string) => {
     if (confirm("Rəsmi otağı silmək istədiyinizə əminsiniz?")) {
-      setRooms(rooms.filter(r => r.id !== id));
+      await supabase.from('rooms').delete().eq('id', id);
+      fetchRooms();
     }
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setRooms([
-      {
-        id: `official-${Date.now()}`,
-        name: newRoom.name,
-        topic: newRoom.topic,
-        maxParticipants: newRoom.maxParticipants,
-        isOfficial: true,
-        status: "Active"
-      },
-      ...rooms
-    ]);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    await supabase.from('rooms').insert({
+      title: newRoom.name,
+      topic: newRoom.topic,
+      max_capacity: newRoom.maxParticipants,
+      is_official: true,
+      creator_id: session.user.id,
+      status: "waiting",
+      room_type: "public"
+    });
+
     setIsModalOpen(false);
     setNewRoom({ name: "", topic: "", maxParticipants: 4 });
+    fetchRooms();
   };
+
+  const filteredRooms = rooms.filter(r => 
+    r.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    r.topic.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div>
@@ -54,6 +82,8 @@ export default function AdminRoomsPage() {
               type="text" 
               placeholder="Otaq axtar..." 
               className="w-full pl-9 pr-4 py-2 bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <button 
@@ -65,50 +95,56 @@ export default function AdminRoomsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <AnimatePresence>
-          {rooms.map((room) => (
-            <motion.div
-              key={room.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-card border-2 border-primary/20 rounded-3xl p-6 shadow-sm relative group overflow-hidden flex flex-col h-full"
-            >
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-primary-neon" />
-              
-              <div className="flex justify-between items-start mt-2 mb-4">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-primary" />
-                  <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md uppercase">Rəsmi Otaq</span>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <AnimatePresence>
+            {filteredRooms.map((room) => (
+              <motion.div
+                key={room.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-card border-2 border-primary/20 rounded-3xl p-6 shadow-sm relative group overflow-hidden flex flex-col h-full"
+              >
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-primary-neon" />
+                
+                <div className="flex justify-between items-start mt-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-primary" />
+                    <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md uppercase">Rəsmi Otaq</span>
+                  </div>
+                  <button 
+                    onClick={() => toggleStatus(room)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                      room.status === "active" ? "bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white" : "bg-muted text-muted-foreground hover:bg-gray-300"
+                    }`}
+                  >
+                    <Power className="w-3.5 h-3.5" /> {room.status === "active" ? "Aktiv" : "Gözləyir"}
+                  </button>
                 </div>
-                <button 
-                  onClick={() => toggleStatus(room.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                    room.status === "Active" ? "bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white" : "bg-muted text-muted-foreground hover:bg-gray-300"
-                  }`}
-                >
-                  <Power className="w-3.5 h-3.5" /> {room.status === "Active" ? "Aktiv" : "Deaktiv"}
-                </button>
-              </div>
 
-              <h3 className="text-xl font-bold mb-2">{room.name}</h3>
-              <p className="text-sm text-muted-foreground mb-6 line-clamp-2">{room.topic}</p>
+                <h3 className="text-xl font-bold mb-2">{room.title}</h3>
+                <p className="text-sm text-muted-foreground mb-6 line-clamp-2">{room.topic}</p>
 
-              <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
-                <div className="text-sm font-medium">Maks: <span className="text-primary">{room.maxParticipants} Nəfər</span></div>
-                <button 
-                  onClick={() => handleDelete(room.id)}
-                  className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                  title="Otağı Sil"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+                <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
+                  <div className="text-sm font-medium">Maks: <span className="text-primary">{room.max_capacity} Nəfər</span></div>
+                  <button 
+                    onClick={() => handleDelete(room.id)}
+                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    title="Otağı Sil"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* CREATE MODAL */}
       <AnimatePresence>
@@ -160,7 +196,7 @@ export default function AdminRoomsPage() {
                     <option value={2}>2 Nəfər</option>
                     <option value={4}>4 Nəfər</option>
                     <option value={6}>6 Nəfər</option>
-                    <option value={10}>10+ Nəfər</option>
+                    <option value={10}>10 Nəfər</option>
                   </select>
                 </div>
 
