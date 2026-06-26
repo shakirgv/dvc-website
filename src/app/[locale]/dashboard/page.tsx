@@ -46,6 +46,7 @@ export default function DashboardPage() {
   const [debateTopicType, setDebateTopicType] = useState("manual"); // manual | ai
   const [debateTopic, setDebateTopic] = useState("");
   const [debateSide, setDebateSide] = useState("Təsdiq"); // Təsdiq | İnkar
+  const [debateLang, setDebateLang] = useState("az"); // az | en | ru
 
   // Leaderboard State
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -1162,9 +1163,23 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Language Selection */}
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-muted-foreground uppercase">Debatın Dili</label>
+                  <select 
+                    value={debateLang}
+                    onChange={e => setDebateLang(e.target.value)}
+                    className="w-full border border-border rounded-xl p-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none font-bold"
+                  >
+                    <option value="az">Azərbaycan dili</option>
+                    <option value="en">İngilis dili (English)</option>
+                    <option value="ru">Rus dili (Русский)</option>
+                  </select>
+                </div>
+
                 <div className="pt-4 border-t border-border mt-6">
                   <Link 
-                    href={`/${locale}/ai-partner?topic=${encodeURIComponent(debateTopicType === "ai" ? "auto" : debateTopic)}&side=${encodeURIComponent(debateSide)}`}
+                    href={`/${locale}/ai-partner?topic=${encodeURIComponent(debateTopicType === "ai" ? "auto" : debateTopic)}&side=${encodeURIComponent(debateSide)}&lang=${encodeURIComponent(debateLang)}`}
                     className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary-hover transition-colors shadow-md disabled:opacity-50"
                     onClick={(e) => {
                       if (debateTopicType === "manual" && !debateTopic.trim()) {

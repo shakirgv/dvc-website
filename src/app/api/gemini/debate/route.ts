@@ -5,7 +5,8 @@ const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, topic, side, history, userMessage } = body;
+    const { action, topic, side, history, userMessage, lang } = body;
+    const langName = lang === 'en' ? 'İngilis (English)' : lang === 'ru' ? 'Rus (Русский)' : 'Azərbaycan';
 
     const apiKey = process.env.GEMINI_API_KEY;
 
@@ -23,7 +24,8 @@ Qaydalar:
 1. Arqumentlərini qısa, məntiqli və kəskin formada yaz.
 2. Maksimum 3-4 cümlə ilə cavab ver.
 3. Hər zaman opponentinin dediklərinə cavab ver (təkzib et) və öz yeni arqumentini gətir.
-4. Çıxışın rəsmi, lakin sərt və inandırıcı olmalıdır. Təhqirə yol vermə.`;
+4. Çıxışın rəsmi, lakin sərt və inandırıcı olmalıdır. Təhqirə yol vermə.
+MÜTLƏQ DİQQƏT: İstifadəçi hər hansı başqa dildə yazsa belə, sən bütün debat boyunca MÜTLƏQ yalnız ${langName} dilində cavab verməlisən, arqumentləri həmin dildə qurmalı və yekun rəyi (feedback) tam olaraq həmin dildə yazmalısan.`;
 
       const formattedHistory = (history || []).map((msg: any) => ({
         role: msg.role === 'user' ? 'user' : 'model',
@@ -69,9 +71,9 @@ ${(history || []).map((m: any) => `${m.role === 'user' ? 'İstifadəçi' : 'AI'}
 Səndən aşağıdakı JSON formatında yekun nəticə tələb olunur:
 {
   "score": <0-dan 100-ə qədər tam ədəd>,
-  "feedback": "<İstifadəçinin zəif və güclü tərəfləri, nitqi və arqumentasiyası haqqında detallı analiz. Azərbaycan dilində.>"
+  "feedback": "<İstifadəçinin zəif və güclü tərəfləri, nitqi və arqumentasiyası haqqında detallı analiz. ${langName} dilində.>"
 }
-Diqqət: Yalnız düzgün formatlanmış JSON qaytar. Heç bir markdown backtick (\`\`\`) istifadə etmə.`;
+Diqqət: Yalnız düzgün formatlanmış JSON qaytar. Heç bir markdown backtick (\`\`\`) istifadə etmə. Yekun rəyi (feedback) yalnız və yalnız ${langName} dilində yazmalısan.`;
 
       const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
         method: "POST",
@@ -94,7 +96,8 @@ Diqqət: Yalnız düzgün formatlanmış JSON qaytar. Heç bir markdown backtick
 
     if (action === "generate_topic") {
       const prompt = `Gənclər üçün rəsmi parlament debatında istifadə edilə biləcək aktual, maraqlı və fəlsəfi/sosial/siyasi/iqtisadi bir mövzu generasiya et. 
-Sadecə mövzunun adını (1 cümlə) qaytar. Nümunə: Sosial şəbəkələr gənclərin inkişafına zərərlidir.`;
+Sadecə mövzunun adını (1 cümlə) qaytar.
+MÜTLƏQ DİQQƏT: Mövzunu yalnız və yalnız ${langName} dilində generasiya et.`;
       
       const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
         method: "POST",

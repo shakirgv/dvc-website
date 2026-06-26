@@ -80,6 +80,7 @@ export default function AdminAIDebatesPage() {
       "Ad/Soyad": `${d.profiles?.first_name || ""} ${d.profiles?.last_name || ""}`.trim(),
       "DVC ID": d.profiles?.dvc_id || "",
       "Debat Mövzusu": d.topic,
+      "Dil": (d.language || 'az').toUpperCase(),
       "Seçdiyi Tərəf": d.side,
       "Yekun Xal": d.score,
       "Tarix": new Date(d.created_at).toLocaleString("az-AZ"),
@@ -165,7 +166,7 @@ export default function AdminAIDebatesPage() {
             <div className="space-y-2">
               {trendingTopics.map((t, i) => (
                 <div key={i} className="flex justify-between items-center text-sm">
-                  <span className="truncate pr-4 max-w-[200px] font-medium" title={t.topic}>{t.topic}</span>
+                  <span className="pr-4 line-clamp-2 font-medium break-words leading-tight" title={t.topic}>{t.topic}</span>
                   <span className="bg-muted px-2 py-0.5 rounded-md text-xs font-bold">{t.count}x</span>
                 </div>
               ))}
@@ -222,7 +223,10 @@ export default function AdminAIDebatesPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="font-semibold line-clamp-2" title={d.topic}>{d.topic}</div>
-                        <div className="text-xs mt-1 bg-primary/10 text-primary w-fit px-2 py-0.5 rounded font-bold">{d.side}</div>
+                        <div className="flex gap-1 mt-1">
+                          <span className="text-[10px] bg-muted text-muted-foreground w-fit px-1.5 py-0.5 rounded font-bold uppercase">{d.language || 'az'}</span>
+                          <span className="text-xs bg-primary/10 text-primary w-fit px-2 py-0.5 rounded font-bold">{d.side}</span>
+                        </div>
                       </td>
                       <td className="px-5 py-4">
                         <span className="font-black text-lg">{d.score}</span>/100

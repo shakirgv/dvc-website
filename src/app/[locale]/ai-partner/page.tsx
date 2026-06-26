@@ -16,6 +16,7 @@ function AIPartnerContent() {
   
   const rawTopic = searchParams.get("topic") || "";
   const side = searchParams.get("side") || "Təsdiq";
+  const lang = searchParams.get("lang") || "az";
   
   const [topic, setTopic] = useState(rawTopic === "auto" ? "Generasiya olunur..." : rawTopic);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -56,7 +57,7 @@ function AIPartnerContent() {
         const res = await fetch("/api/gemini/debate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "generate_topic" })
+          body: JSON.stringify({ action: "generate_topic", lang })
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
@@ -119,7 +120,8 @@ function AIPartnerContent() {
           topic: topic,
           side: side,
           history: currentMessages,
-          userMessage: textToSend
+          userMessage: textToSend,
+          lang: lang
         })
       });
 
@@ -147,6 +149,7 @@ function AIPartnerContent() {
             topic: topic,
             side: side,
             history: updatedMessages,
+            lang: lang
           })
         });
         
@@ -164,7 +167,8 @@ function AIPartnerContent() {
           feedback: evalData.feedback || "Feedback yoxdur",
           total_tokens: totalTokens + chatTokens + evalTokens,
           chat_history: updatedMessages,
-          is_flagged: false
+          is_flagged: false,
+          language: lang
         });
 
       } else {
