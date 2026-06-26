@@ -56,11 +56,23 @@ export default function RoomsLobbyPage() {
     // Fetch rooms that are not finished
     const { data, error } = await supabase
       .from('rooms')
-      .select('*, profiles:creator_id(first_name, last_name)')
+      .select('*')
       .neq('status', 'finished')
       .order('created_at', { ascending: false });
       
-    if (data) {
+    if (error) {
+      console.error("Error fetching rooms:", error);
+    }
+    if (data && data.length > 0) {
+      // Fetch profiles manually to avoid Foreign Key ambiguity
+      const userIds = [...new Set(data.map(r => r.creator_id).filter(Boolean))];
+      const { data: profs } = await supabase.from('profiles').select('id, first_name, last_name').in('id', userIds);
+      if (profs) {
+        const profMap = profs.reduce((acc: any, p: any) => { acc[p.id] = p; return acc; }, {});
+        data.forEach(r => { r.profiles = profMap[r.creator_id]; });
+      }
+      setRooms(data);
+    } else if (data) {
       setRooms(data);
     }
     setIsLoading(false);
