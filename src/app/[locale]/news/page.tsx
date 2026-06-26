@@ -92,7 +92,7 @@ export default function PublicNewsPage() {
               const formattedDate = formatCustomDate(dateObj, locale);
 
               return (
-                <Link href={`/${locale}/news/${news.id}`} key={news.id}>
+                <Link href={`/${locale}/news/${news.slug || news.id}`} key={news.id}>
                   <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}

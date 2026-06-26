@@ -15,6 +15,8 @@ interface NewsItem {
   excerpt_az: string; excerpt_en: string; excerpt_ru: string;
   content_az: string; content_en: string; content_ru: string;
   image_url: string;
+  slug?: string;
+  gallery_images?: string[];
   status: string;
   views: number;
   created_at: string;
@@ -69,6 +71,8 @@ export default function AdminNewsPage() {
       excerpt_az: "", excerpt_en: "", excerpt_ru: "",
       content_az: "", content_en: "", content_ru: "",
       image_url: "",
+      slug: "",
+      gallery_images: [],
       status: "Draft",
       views: 0,
       created_at: new Date().toISOString()
@@ -137,6 +141,50 @@ export default function AdminNewsPage() {
       setFormData(prev => ({ ...prev, image_url: data.publicUrl }));
     }
     setIsUploading(false);
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setIsUploading(true);
+    
+    const newUrls: string[] = [];
+    for (let i = 0; i < e.target.files.length; i++) {
+      const file = e.target.files[i];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${i}.${fileExt}`;
+      const filePath = `gallery/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("dvc_images")
+        .upload(filePath, file);
+
+      if (!uploadError) {
+        const { data } = supabase.storage.from("dvc_images").getPublicUrl(filePath);
+        if (data?.publicUrl) {
+          newUrls.push(data.publicUrl);
+        }
+      }
+    }
+    
+    setFormData(prev => ({ 
+      ...prev, 
+      gallery_images: [...(prev.gallery_images || []), ...newUrls] 
+    }));
+    setIsUploading(false);
+  };
+
+  const generateSlug = () => {
+    if (!formData.title_az) return;
+    const charMap: Record<string, string> = {
+      'ə': 'e', 'ö': 'o', 'ğ': 'g', 'ü': 'u', 'ş': 's', 'ı': 'i', 'ç': 'c',
+      'Ə': 'e', 'Ö': 'o', 'Ğ': 'g', 'Ü': 'u', 'Ş': 's', 'I': 'i', 'Ç': 'c'
+    };
+    const slug = formData.title_az
+      .replace(/[əöğüşıçƏÖĞÜŞIÇ]/g, match => charMap[match])
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+    setFormData(prev => ({ ...prev, slug }));
   };
 
   return (
@@ -319,6 +367,29 @@ export default function AdminNewsPage() {
                     />
                   </div>
 
+                  {currentLang === "az" && (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-muted-foreground uppercase">SLUG (Link)</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          value={formData.slug || ""}
+                          onChange={e => handleGlobalChange("slug", e.target.value)}
+                          placeholder="milli-debat-forumu-2026"
+                        />
+                        <button 
+                          type="button"
+                          onClick={generateSlug}
+                          className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl hover:bg-primary/20 transition-colors shrink-0"
+                          title="Avtomatik Yarat"
+                        >
+                          🪄 Avtomatik Yarat
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold text-muted-foreground uppercase">Kateqoriya ({currentLang.toUpperCase()}) (Boş qalsa 'Yenilik' olacaq)</label>
                     <input 
@@ -351,6 +422,40 @@ export default function AdminNewsPage() {
                     />
                   </div>
                 </motion.div>
+
+                {/* GALLERY UPLOAD */}
+                <div className="p-4 bg-muted/20 rounded-2xl border border-border space-y-3 mt-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold">Xəbər Qalereyası (Çoxlu Şəkil Yüklə)</h4>
+                    {isUploading && <span className="text-xs text-primary animate-pulse">Yüklənir...</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    {formData.gallery_images?.map((url, idx) => (
+                      <div key={idx} className="relative w-24 h-24 rounded-xl overflow-hidden border border-border">
+                        <img src={url} className="w-full h-full object-cover" />
+                        <button 
+                          type="button" 
+                          onClick={() => setFormData(prev => ({...prev, gallery_images: prev.gallery_images?.filter((_, i) => i !== idx)}))}
+                          className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-red-500"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    <label className="flex flex-col items-center justify-center w-24 h-24 bg-background border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
+                      <Plus className="w-6 h-6 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground mt-1">Əlavə et</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        multiple
+                        className="hidden" 
+                        onChange={handleGalleryUpload}
+                        disabled={isUploading}
+                      />
+                    </label>
+                  </div>
+                </div>
 
                 <div className="flex gap-3 pt-4 border-t border-border mt-6">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-muted text-foreground rounded-xl font-bold hover:bg-muted/80 transition-colors">Ləğv et</button>

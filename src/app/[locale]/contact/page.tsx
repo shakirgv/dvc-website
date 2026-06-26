@@ -174,6 +174,7 @@ export default function ContactPage() {
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">TELEFON NÖMRƏSİ</label>
                 <input 
                   type="tel" 
+                  required
                   value={formData.phone_number}
                   onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
                   className="w-full bg-background border border-border rounded-xl py-3.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"

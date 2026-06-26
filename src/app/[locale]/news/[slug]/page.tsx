@@ -19,10 +19,12 @@ export default function NewsDetailPage() {
   useEffect(() => {
     async function fetchNewsDetail() {
       setIsLoading(true);
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+      
       const { data, error } = await supabase
         .from("news")
         .select("*")
-        .eq("id", slug)
+        .eq(isUUID ? "id" : "slug", slug)
         .single();
         
       if (data) {
@@ -120,6 +122,19 @@ export default function NewsDetailPage() {
               </p>
             ))}
           </div>
+
+          {newsItem.gallery_images && newsItem.gallery_images.length > 0 && (
+            <div className="mt-12 pt-8 border-t border-border">
+              <h3 className="text-2xl font-bold mb-6">{locale === 'az' ? 'Xəbər Qalereyası' : locale === 'en' ? 'News Gallery' : 'Галерея Новостей'}</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {newsItem.gallery_images.map((img: string, idx: number) => (
+                  <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="block relative h-32 md:h-48 rounded-2xl overflow-hidden border border-border shadow-sm hover:opacity-90 transition-opacity">
+                    <img src={img} className="w-full h-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="mt-12 pt-8 border-t border-border flex items-center justify-between">
             <span className="text-sm font-bold text-muted-foreground">{locale === 'az' ? "Bu xəbəri paylaş:" : locale === 'en' ? "Share this news:" : "Поделиться новостью:"}</span>
