@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Calendar, Eye, ChevronRight, Newspaper, ArrowLeft } from "lucide-react";
+import { Calendar, Eye, ChevronRight, Newspaper, ArrowLeft, X } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { formatCustomDate } from "@/lib/formatDate";
 
@@ -15,6 +15,7 @@ export default function NewsDetailPage() {
 
   const [newsItem, setNewsItem] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchNewsDetail() {
@@ -128,9 +129,9 @@ export default function NewsDetailPage() {
               <h3 className="text-2xl font-bold mb-6">{locale === 'az' ? 'Xəbər Qalereyası' : locale === 'en' ? 'News Gallery' : 'Галерея Новостей'}</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {newsItem.gallery_images.map((img: string, idx: number) => (
-                  <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="block relative h-32 md:h-48 rounded-2xl overflow-hidden border border-border shadow-sm hover:opacity-90 transition-opacity">
-                    <img src={img} className="w-full h-full object-cover" />
-                  </a>
+                  <button key={idx} onClick={() => setSelectedImage(img)} className="block relative h-32 md:h-48 rounded-2xl overflow-hidden border border-border shadow-sm hover:opacity-90 transition-opacity w-full cursor-zoom-in">
+                    <img src={img} className="w-full h-full object-cover pointer-events-none" />
+                  </button>
                 ))}
               </div>
             </div>
@@ -146,6 +147,35 @@ export default function NewsDetailPage() {
         </motion.div>
 
       </div>
+
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedImage(null)}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm cursor-zoom-out"
+          >
+            <button 
+              onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+              className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <motion.img 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              src={selectedImage} 
+              alt="Gallery Preview" 
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
