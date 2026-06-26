@@ -53,7 +53,8 @@ Qaydalar:
       }
 
       const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Cavab alına bilmədi.";
-      return NextResponse.json({ text: aiText });
+      const tokens = data.usageMetadata?.totalTokenCount || 0;
+      return NextResponse.json({ text: aiText, tokens });
     }
 
     if (action === "analyze") {
@@ -86,8 +87,9 @@ Diqqət: Yalnız düzgün formatlanmış JSON qaytar. Heç bir markdown backtick
 
       const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
       const result = JSON.parse(resultText);
+      const tokens = data.usageMetadata?.totalTokenCount || 0;
 
-      return NextResponse.json(result);
+      return NextResponse.json({ ...result, tokens });
     }
 
     if (action === "generate_topic") {

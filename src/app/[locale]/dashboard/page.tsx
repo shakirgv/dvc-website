@@ -50,6 +50,7 @@ export default function DashboardPage() {
   // Leaderboard State
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [userDebates, setUserDebates] = useState<any[]>([]);
+  const [expandedFeedback, setExpandedFeedback] = useState<string | null>(null);
 
   // Onboarding State
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -146,7 +147,7 @@ export default function DashboardPage() {
     if (certData) setCertificates(certData);
 
     // Fetch AI Debates Leaderboard (Aggregation)
-    const { data: allDebates } = await supabase.from("ai_debates").select("user_id, score, profiles(first_name, last_name, dvc_id, avatar_url)");
+    const { data: allDebates } = await supabase.from("ai_debates").select("user_id, score, profiles(first_name, last_name, dvc_id, avatar_url)").eq("is_flagged", false);
     if (allDebates) {
       const userScores: Record<string, any> = {};
       allDebates.forEach((d: any) => {
@@ -745,7 +746,21 @@ export default function DashboardPage() {
                             <span className="px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-sm font-bold shrink-0 ml-4">{h.score} / 100</span>
                           </div>
                           <p className="text-xs text-muted-foreground mb-3">{new Date(h.created_at).toLocaleString("az-AZ")}</p>
-                          {h.feedback && <p className="text-sm text-foreground/80 line-clamp-3">{h.feedback}</p>}
+                          {h.feedback && (
+                            <div>
+                              <p className={`text-sm text-foreground/80 ${expandedFeedback === h.id ? '' : 'line-clamp-3'}`}>
+                                {h.feedback}
+                              </p>
+                              {h.feedback.length > 150 && (
+                                <button 
+                                  onClick={() => setExpandedFeedback(expandedFeedback === h.id ? null : h.id)} 
+                                  className="text-xs text-primary font-bold mt-2 hover:underline"
+                                >
+                                  {expandedFeedback === h.id ? "Daha az" : "Davamını oxu"}
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))
                     )}

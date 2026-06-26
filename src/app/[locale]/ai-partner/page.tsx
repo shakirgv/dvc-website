@@ -26,6 +26,7 @@ function AIPartnerContent() {
   const [isFinished, setIsFinished] = useState(false);
   const [evaluation, setEvaluation] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [totalTokens, setTotalTokens] = useState(0);
   
   // Timer State
   const [timeLeft, setTimeLeft] = useState(120); // 2 mins per turn
@@ -126,6 +127,9 @@ function AIPartnerContent() {
       
       if (data.error) throw new Error(data.error);
       
+      const chatTokens = data.tokens || 0;
+      setTotalTokens(prev => prev + chatTokens);
+
       const updatedMessages: Message[] = [...newMessages, { role: "model", text: data.text }];
       setMessages(updatedMessages);
       setRound(currentRound);
@@ -147,6 +151,8 @@ function AIPartnerContent() {
         });
         
         const evalData = await evalRes.json();
+        const evalTokens = evalData.tokens || 0;
+        setTotalTokens(prev => prev + evalTokens);
         setEvaluation(evalData);
         
         // Save to Supabase
@@ -155,7 +161,10 @@ function AIPartnerContent() {
           topic: topic,
           side: side,
           score: evalData.score || 0,
-          feedback: evalData.feedback || "Feedback yoxdur"
+          feedback: evalData.feedback || "Feedback yoxdur",
+          total_tokens: totalTokens + chatTokens + evalTokens,
+          chat_history: updatedMessages,
+          is_flagged: false
         });
 
       } else {
