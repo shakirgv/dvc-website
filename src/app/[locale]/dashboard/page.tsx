@@ -41,6 +41,16 @@ export default function DashboardPage() {
   // Certificates State
   const [certificates, setCertificates] = useState<any[]>([]);
 
+  // AI Debate Setup Modal State
+  const [isDebateModalOpen, setIsDebateModalOpen] = useState(false);
+  const [debateTopicType, setDebateTopicType] = useState("manual"); // manual | ai
+  const [debateTopic, setDebateTopic] = useState("");
+  const [debateSide, setDebateSide] = useState("Təsdiq"); // Təsdiq | İnkar
+
+  // Leaderboard State
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [userDebates, setUserDebates] = useState<any[]>([]);
+
   // Onboarding State
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingData, setOnboardingData] = useState({ phone: "+994 ", region: "Bakı", education: "", password: "", confirmPassword: "" });
@@ -134,6 +144,33 @@ export default function DashboardPage() {
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (certData) setCertificates(certData);
+
+    // Fetch AI Debates Leaderboard (Aggregation)
+    const { data: allDebates } = await supabase.from("ai_debates").select("user_id, score, profiles(first_name, last_name, dvc_id, avatar_url)");
+    if (allDebates) {
+      const userScores: Record<string, any> = {};
+      allDebates.forEach((d: any) => {
+        const uid = d.user_id;
+        if (!userScores[uid]) {
+          userScores[uid] = {
+            id: uid,
+            name: `${d.profiles?.first_name || ""} ${d.profiles?.last_name || ""}`.trim(),
+            dvc_id: d.profiles?.dvc_id || "",
+            avatar: d.profiles?.avatar_url || d.profiles?.first_name?.charAt(0) || "?",
+            total_score: 0
+          };
+        }
+        userScores[uid].total_score += (d.score || 0);
+      });
+      const sortedLeaderboard = Object.values(userScores).sort((a, b) => b.total_score - a.total_score);
+      setLeaderboard(sortedLeaderboard);
+    }
+
+    // Fetch User's own debates history
+    const { data: myDebates } = await supabase.from("ai_debates").select("*").eq("user_id", userId).order("created_at", { ascending: false });
+    if (myDebates) {
+      setUserDebates(myDebates);
+    }
 
     setIsLoadingApps(false);
   };
@@ -502,9 +539,9 @@ export default function DashboardPage() {
                         <h4 className="text-2xl font-bold mb-2 flex items-center gap-2"><Bot className="w-6 h-6" /> AI ilə Məşq Et</h4>
                         <p className="text-white/80 mb-6">Gemini 1.5 süni intellekti ilə real debata girin. Arqumentlərinizi yoxlayın və dərhal qiymət alın.</p>
                       </div>
-                      <Link href="/az/ai-partner" className="inline-flex w-fit px-6 py-3 bg-white text-primary font-bold rounded-xl shadow-md hover:scale-105 transition-transform items-center gap-2">
+                      <button onClick={() => setIsDebateModalOpen(true)} className="inline-flex w-fit px-6 py-3 bg-white text-primary font-bold rounded-xl shadow-md hover:scale-105 transition-transform items-center gap-2">
                         <Zap className="w-5 h-5 text-yellow-500" /> Debata Başla
-                      </Link>
+                      </button>
                     </div>
 
                     {/* Rooms CTA */}
@@ -659,62 +696,59 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* LEADERBOARD TAB (Phase 3.5) */}
+              {/* LEADERBOARD TAB */}
               {activeTab === "leaderboard" && (
                 <div>
                   <h3 className="text-2xl font-bold mb-8 flex items-center gap-2">
-                    <Trophy className="w-6 h-6 text-yellow-500" /> Həftənin Debatçıları
+                    <Trophy className="w-6 h-6 text-yellow-500" /> Ümumi Reytinq Cədvəli
                   </h3>
                   
-                  {/* Leaderboard UI (Mock) */}
-                  <div className="space-y-3 mb-10">
-                    {[
-                      { name: "Leyla Əliyeva", id: "DVC-2026-1024", score: 98, avatar: "L" },
-                      { name: "Rəşad Quliyev", id: "DVC-2026-5512", score: 95, avatar: "R" },
-                      { name: "Siz (Mövcud Sessiya)", id: session.user.id.substring(0,8), score: 92, avatar: "S" },
-                    ].map((user, i) => (
-                      <div key={i} className={`flex items-center gap-4 p-4 rounded-2xl border ${i === 2 ? 'bg-primary/5 border-primary/30' : 'bg-card border-border'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${i === 0 ? 'bg-yellow-500 text-white' : i === 1 ? 'bg-gray-300 text-gray-800' : 'bg-primary text-white'}`}>
-                          {i + 1}
+                  {leaderboard.length === 0 ? (
+                    <p className="text-muted-foreground text-sm mb-10">Hələ ki, heç kim debatda iştirak etməyib.</p>
+                  ) : (
+                    <div className="space-y-3 mb-10">
+                      {leaderboard.map((user, i) => (
+                        <div key={user.id} className={`flex items-center gap-4 p-4 rounded-2xl border ${user.id === session?.user?.id ? 'bg-primary/5 border-primary/30' : 'bg-card border-border'}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${i === 0 ? 'bg-yellow-500 text-white' : i === 1 ? 'bg-gray-300 text-gray-800' : 'bg-primary text-white'}`}>
+                            {i + 1}
+                          </div>
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center font-bold text-lg overflow-hidden shrink-0">
+                            {user.avatar.length === 1 ? user.avatar : <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-bold">{user.name} {user.id === session?.user?.id ? "(Siz)" : ""}</h4>
+                            <p className="text-xs text-muted-foreground font-mono">{user.dvc_id}</p>
+                          </div>
+                          <div className="font-bold text-lg text-primary">
+                            {user.total_score} Xal
+                          </div>
                         </div>
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center font-bold">
-                          {user.avatar}
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-bold">{user.name}</h4>
-                          <p className="text-xs text-muted-foreground font-mono">{user.id}</p>
-                        </div>
-                        <div className="font-bold text-lg text-primary">
-                          {user.score} Xal
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
 
                   <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                     <History className="w-5 h-5 text-primary" /> AI Debat Tarixçəm
                   </h3>
                   
                   <div className="space-y-4">
-                    {(() => {
-                      const savedHistory = typeof window !== 'undefined' ? localStorage.getItem("dvc-ai-history") : null;
-                      const history = savedHistory ? JSON.parse(savedHistory) : [];
-                      
-                      if (history.length === 0) {
-                        return <p className="text-muted-foreground text-sm">Hələ ki, heç bir AI debat tarixçəniz yoxdur.</p>;
-                      }
-
-                      return history.map((h: any) => (
+                    {userDebates.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">Hələ ki, heç bir AI debat tarixçəniz yoxdur.</p>
+                    ) : (
+                      userDebates.map((h: any) => (
                         <div key={h.id} className="p-5 rounded-2xl border border-border bg-card shadow-sm">
                           <div className="flex justify-between items-start mb-3">
-                            <h4 className="font-bold">{h.topic}</h4>
-                            <span className="px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-sm font-bold">{h.score} / 100</span>
+                            <div>
+                              <h4 className="font-bold">{h.topic}</h4>
+                              <p className="text-xs font-medium mt-1">Mövqe: {h.side}</p>
+                            </div>
+                            <span className="px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-sm font-bold shrink-0 ml-4">{h.score} / 100</span>
                           </div>
-                          <p className="text-xs text-muted-foreground mb-3">{h.date}</p>
-                          <p className="text-sm text-foreground/80 line-clamp-2">{h.evaluation}</p>
+                          <p className="text-xs text-muted-foreground mb-3">{new Date(h.created_at).toLocaleString("az-AZ")}</p>
+                          {h.feedback && <p className="text-sm text-foreground/80 line-clamp-3">{h.feedback}</p>}
                         </div>
-                      ));
-                    })()}
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -1026,6 +1060,107 @@ export default function DashboardPage() {
                 >
                   {isOnboardingLoading ? "Yadda Saxlanılır..." : "Tamamla və Davam Et"}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* AI DEBATE SETUP MODAL */}
+      <AnimatePresence>
+        {isDebateModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-2xl bg-card border border-border rounded-3xl shadow-2xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar"
+            >
+              <button onClick={() => setIsDebateModalOpen(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted text-muted-foreground">
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Bot className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">AI Debat Parametrləri</h3>
+                  <p className="text-muted-foreground text-sm mt-1">Debatınızın formatını təyin edin.</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {/* Topic Type Tabs */}
+                <div className="flex gap-2 p-1 bg-muted rounded-xl">
+                  <button 
+                    onClick={() => setDebateTopicType("manual")}
+                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-colors ${debateTopicType === "manual" ? "bg-background shadow-sm" : "text-muted-foreground hover:bg-background/50"}`}
+                  >
+                    Özüm Yazıram
+                  </button>
+                  <button 
+                    onClick={() => setDebateTopicType("ai")}
+                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${debateTopicType === "ai" ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:bg-background/50"}`}
+                  >
+                    <Zap className="w-4 h-4" /> Mövzunu AI seçsin
+                  </button>
+                </div>
+
+                {/* Topic Input */}
+                {debateTopicType === "manual" ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-muted-foreground uppercase">Mövzunu Daxil Edin</label>
+                    <textarea 
+                      placeholder="Məsələn: Sosial şəbəkələr gənclərin inkişafına zərərlidir."
+                      className="w-full min-h-[100px] border border-border rounded-xl p-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                      value={debateTopic}
+                      onChange={e => setDebateTopic(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-xl bg-primary/5 border border-primary/20 text-center">
+                    <p className="text-sm text-primary/80">
+                      Sistem avtomatik olaraq müasir dövrə uyğun, maraqlı və intellektual bir parlament debat mövzusu generasiya edəcək.
+                    </p>
+                  </div>
+                )}
+
+                {/* Side Selection */}
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-muted-foreground uppercase">Sizin Mövqeyiniz</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => setDebateSide("Təsdiq")}
+                      className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${debateSide === "Təsdiq" ? "border-green-500 bg-green-500/5 text-green-600" : "border-border bg-card text-muted-foreground hover:border-green-500/50"}`}
+                    >
+                      <CheckCircle2 className="w-6 h-6" />
+                      <span className="font-bold">Təsdiq (Hökumət)</span>
+                    </button>
+                    <button 
+                      onClick={() => setDebateSide("İnkar")}
+                      className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${debateSide === "İnkar" ? "border-red-500 bg-red-500/5 text-red-600" : "border-border bg-card text-muted-foreground hover:border-red-500/50"}`}
+                    >
+                      <X className="w-6 h-6" />
+                      <span className="font-bold">İnkar (Müxalifət)</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-border mt-6">
+                  <Link 
+                    href={`/${locale}/ai-partner?topic=${encodeURIComponent(debateTopicType === "ai" ? "auto" : debateTopic)}&side=${encodeURIComponent(debateSide)}`}
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary-hover transition-colors shadow-md disabled:opacity-50"
+                    onClick={(e) => {
+                      if (debateTopicType === "manual" && !debateTopic.trim()) {
+                        e.preventDefault();
+                        alert("Zəhmət olmasa mövzunu daxil edin.");
+                      }
+                    }}
+                  >
+                    Müzakirəyə Başla <Zap className="w-5 h-5 text-yellow-300" />
+                  </Link>
+                </div>
               </div>
             </motion.div>
           </div>

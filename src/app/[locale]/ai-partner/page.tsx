@@ -1,24 +1,35 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, Clock, Award, ShieldAlert, Zap, RefreshCcw } from "lucide-react";
+import { Send, Bot, User, Clock, Award, ShieldAlert, Zap, ArrowLeft, Loader2 } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
 type Message = { role: "user" | "model"; text: string };
 
-export default function AIPartnerPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "model", text: "Salam! Mən sənin süni intellekt debat tərəfdaşınam (Gemini 1.5). Mövzumuz: 'Sosial şəbəkələr gənclərin inkişafına zərərlidir'. Sən bu fikri təsdiqləyirsən (Təsdiq), yoxsa inkar edirsən (İnkar)?" }
-  ]);
+function AIPartnerContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const supabase = createClient();
+  
+  const rawTopic = searchParams.get("topic") || "";
+  const side = searchParams.get("side") || "Təsdiq";
+  
+  const [topic, setTopic] = useState(rawTopic === "auto" ? "Generasiya olunur..." : rawTopic);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [round, setRound] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
-  const [evaluation, setEvaluation] = useState<string | null>(null);
+  const [evaluation, setEvaluation] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   
   // Timer State
   const [timeLeft, setTimeLeft] = useState(120); // 2 mins per turn
-  const [timerActive, setTimerActive] = useState(true);
+  const [timerActive, setTimerActive] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -27,16 +38,55 @@ export default function AIPartnerPage() {
   }, [messages, evaluation]);
 
   useEffect(() => {
+    initDebate();
+  }, []);
+
+  const initDebate = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+    setUserId(session.user.id);
+
+    let finalTopic = rawTopic;
+    if (rawTopic === "auto") {
+      try {
+        const res = await fetch("/api/gemini/debate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "generate_topic" })
+        });
+        const data = await res.json();
+        finalTopic = data.topic;
+        setTopic(finalTopic);
+      } catch (err) {
+        finalTopic = "Müasir dövrdə texnologiya insanları daha da tənha edir.";
+        setTopic(finalTopic);
+      }
+    } else if (!rawTopic) {
+      finalTopic = "Sosial şəbəkələr gənclərin inkişafına zərərlidir.";
+      setTopic(finalTopic);
+    }
+
+    setMessages([
+      { role: "model", text: `Salam! Mən sənin süni intellekt debat tərəfdaşınam (Gemini). \nMövzumuz: "${finalTopic}". \nSənin mövqeyin: ${side}. \n\nİlk arqumentini yazmaqla debata başla!` }
+    ]);
+    setIsInitializing(false);
+    setTimerActive(true);
+  };
+
+  useEffect(() => {
     let interval: any = null;
-    if (timerActive && timeLeft > 0 && !isFinished && !isLoading) {
+    if (timerActive && timeLeft > 0 && !isFinished && !isLoading && !isInitializing) {
       interval = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
-    } else if (timeLeft === 0) {
-      handleSend("Vaxtım bitdi...");
+    } else if (timeLeft === 0 && !isFinished && timerActive) {
+      handleSend("Vaxtım bitdi, arqumentimi tamamlaya bilmədim.");
     }
     return () => clearInterval(interval);
-  }, [timerActive, timeLeft, isFinished, isLoading]);
+  }, [timerActive, timeLeft, isFinished, isLoading, isInitializing]);
 
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -48,7 +98,8 @@ export default function AIPartnerPage() {
     const textToSend = forcedText || input;
     if (!textToSend.trim() && !forcedText) return;
 
-    const newMessages: Message[] = [...messages, { role: "user", text: textToSend }];
+    const currentMessages = [...messages];
+    const newMessages: Message[] = [...currentMessages, { role: "user", text: textToSend }];
     setMessages(newMessages);
     setInput("");
     setIsLoading(true);
@@ -58,179 +109,227 @@ export default function AIPartnerPage() {
       const currentRound = round + 1;
       const willEvaluate = currentRound >= 3;
       
-      const response = await fetch("/api/gemini", {
+      const response = await fetch("/api/gemini/debate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          history: messages,
-          currentMessage: textToSend,
-          isEvaluation: willEvaluate
+          action: "chat",
+          topic: topic,
+          side: side,
+          history: currentMessages,
+          userMessage: textToSend
         })
       });
 
       const data = await response.json();
+      
+      if (data.error) throw new Error(data.error);
+      
+      const updatedMessages: Message[] = [...newMessages, { role: "model", text: data.text }];
+      setMessages(updatedMessages);
+      setRound(currentRound);
 
       if (willEvaluate) {
-        setEvaluation(data.reply);
         setIsFinished(true);
+        setIsLoading(true); // Keep loading for final analysis
         
-        // Phase 3.5: Save to AI History for Leaderboard
-        const savedHistory = localStorage.getItem("dvc-ai-history");
-        const history = savedHistory ? JSON.parse(savedHistory) : [];
-        const scoreMatch = data.reply.match(/(\d{2,3})\s*\/\s*100/) || data.reply.match(/(\d{2,3})/);
-        const score = scoreMatch ? parseInt(scoreMatch[1]) : Math.floor(Math.random() * 30 + 70); // fallback if no clear number
-        history.unshift({
-          id: Date.now(),
-          date: new Date().toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' }),
-          topic: "Sosial şəbəkələr gənclərin inkişafına zərərlidir",
-          score,
-          evaluation: data.reply
+        // Analyze
+        const evalRes = await fetch("/api/gemini/debate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "analyze",
+            topic: topic,
+            side: side,
+            history: updatedMessages,
+          })
         });
-        localStorage.setItem("dvc-ai-history", JSON.stringify(history));
         
+        const evalData = await evalRes.json();
+        setEvaluation(evalData);
+        
+        // Save to Supabase
+        await supabase.from("ai_debates").insert({
+          user_id: userId,
+          topic: topic,
+          side: side,
+          score: evalData.score || 0,
+          feedback: evalData.feedback || "Feedback yoxdur"
+        });
+
       } else {
-        setMessages([...newMessages, { role: "model", text: data.reply }]);
-        setRound(currentRound);
         setTimeLeft(120); // reset timer
         setTimerActive(true);
       }
     } catch (error) {
       console.error(error);
-      setMessages([...newMessages, { role: "model", text: "Bağışlayın, şəbəkə xətası baş verdi." }]);
+      setMessages([...newMessages, { role: "model", text: "Bağışlayın, xəta baş verdi." }]);
+      setTimerActive(true);
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-3 text-lg font-medium">Debat otağı hazırlanır...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background pt-20 pb-10 px-4">
-      <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-120px)]">
+    <div className="min-h-[calc(100vh-80px)] bg-background flex flex-col items-center py-8 px-4 relative overflow-hidden">
+      {/* Background Ornaments */}
+      <div className="absolute top-0 left-0 w-full h-[300px] bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+      <div className="absolute top-10 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-40 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-4xl flex items-center justify-between mb-6 z-10">
+        <Link href="/az/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors font-medium">
+          <ArrowLeft className="w-5 h-5" /> Geri qayıt
+        </Link>
+        <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-full shadow-sm text-sm font-bold">
+          <Bot className="w-4 h-4 text-primary" /> AI Partner
+        </div>
+      </div>
+
+      {/* Main Chat Container */}
+      <div className="w-full max-w-4xl bg-card border border-border rounded-3xl shadow-xl overflow-hidden flex flex-col h-[75vh] z-10">
         
-        {/* Header & Timer */}
-        <div className="bg-card border border-border rounded-t-3xl p-4 md:p-6 flex items-center justify-between shadow-sm shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center relative">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
               <Bot className="w-6 h-6 text-primary" />
-              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-card" />
             </div>
             <div>
               <h2 className="font-bold text-lg flex items-center gap-2">
                 DVC AI Partner <Zap className="w-4 h-4 text-yellow-500" />
               </h2>
-              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                <ShieldAlert className="w-4 h-4" /> Gemini 1.5 Flash - Raund {round}/3
-              </p>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Gemini 2.5 Flash</span>
+                <span>•</span>
+                <span>Raund {Math.min(round + 1, 3)}/3</span>
+                <span>•</span>
+                <span>Mövqe: <strong className={side === "Təsdiq" ? "text-green-500" : "text-red-500"}>{side}</strong></span>
+              </div>
             </div>
           </div>
-
-          {!isFinished && (
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-xl font-bold transition-colors ${
-              timeLeft < 30 ? "bg-red-500/10 text-red-500" : "bg-primary/10 text-primary"
-            }`}>
-              <Clock className="w-5 h-5" />
-              {formatTime(timeLeft)}
-            </div>
-          )}
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl font-mono font-bold text-lg transition-colors shrink-0 ${timeLeft < 30 ? 'bg-red-500/10 text-red-500' : 'bg-muted text-foreground'}`}>
+            <Clock className="w-5 h-5" />
+            {formatTime(timeLeft)}
+          </div>
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 bg-muted/20 border-x border-border p-4 md:p-6 overflow-y-auto custom-scrollbar flex flex-col gap-6 relative">
-          {/* Background decoration */}
-          <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]" 
-               style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '24px 24px' }} />
-
-          {messages.map((msg, idx) => (
-            <motion.div 
-              key={idx}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'self-end flex-row-reverse' : 'self-start'}`}
-            >
-              <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center ${
-                msg.role === 'user' ? 'bg-primary text-white' : 'bg-card border border-border shadow-sm'
-              }`}>
-                {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5 text-primary" />}
-              </div>
-              <div className={`p-4 rounded-2xl text-[15px] leading-relaxed shadow-sm ${
-                msg.role === 'user' 
-                  ? 'bg-primary text-white rounded-tr-none' 
-                  : 'bg-card border border-border rounded-tl-none text-foreground'
-              }`}>
-                {msg.text}
-              </div>
-            </motion.div>
-          ))}
-
-          {isLoading && (
-            <div className="self-start flex gap-4 max-w-[85%]">
-              <div className="w-10 h-10 rounded-full shrink-0 bg-card border border-border shadow-sm flex items-center justify-center">
-                <Bot className="w-5 h-5 text-primary animate-pulse" />
-              </div>
-              <div className="p-4 rounded-2xl bg-card border border-border rounded-tl-none flex gap-1.5 items-center">
-                <span className="w-2 h-2 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 rounded-full bg-primary/80 animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar relative">
+          <AnimatePresence initial={false}>
+            {messages.map((msg, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-primary text-white border border-primary/20'}`}>
+                  {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+                </div>
+                <div className={`p-4 rounded-2xl text-[15px] leading-relaxed shadow-sm ${
+                  msg.role === 'user' 
+                    ? 'bg-blue-600 text-white rounded-tr-none' 
+                    : 'bg-muted/50 border border-border text-foreground rounded-tl-none'
+                }`}>
+                  {msg.text.split('\n').map((line, i) => (
+                    <span key={i}>{line}<br/></span>
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          
+          {isLoading && !evaluation && (
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-4 max-w-[80%]">
+               <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0 text-white">
+                 <Bot className="w-5 h-5" />
+               </div>
+               <div className="p-4 rounded-2xl bg-muted/50 border border-border rounded-tl-none flex items-center gap-2">
+                 <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" />
+                 <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                 <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
+               </div>
+             </motion.div>
           )}
 
-          {/* Evaluation Score Panel */}
-          <AnimatePresence>
-            {isFinished && evaluation && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="w-full mt-4 bg-gradient-to-br from-card to-primary/5 border border-primary/20 rounded-2xl p-6 md:p-8 shadow-xl relative overflow-hidden"
-              >
-                <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
-                
-                <div className="flex items-center gap-3 mb-6">
-                  <Award className="w-8 h-8 text-yellow-500" />
-                  <h3 className="text-2xl font-bold">Debat Nəticəsi (AI Analizi)</h3>
+          {/* Evaluation Block */}
+          {evaluation && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mt-8 p-6 md:p-8 bg-gradient-to-br from-green-500/10 to-emerald-500/5 border border-green-500/20 rounded-3xl mx-auto w-full max-w-2xl"
+            >
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-20 h-20 bg-green-500 text-white rounded-full flex items-center justify-center mb-4 shadow-xl shadow-green-500/20">
+                  <Award className="w-10 h-10" />
                 </div>
-                
-                <div className="prose dark:prose-invert max-w-none mb-8 whitespace-pre-wrap leading-relaxed text-sm">
-                  {evaluation}
-                </div>
+                <h3 className="text-2xl font-bold text-green-600 mb-2">Debat Yekunlaşdı</h3>
+                <div className="text-5xl font-black text-foreground mb-1">{evaluation.score}<span className="text-2xl text-muted-foreground font-medium">/100</span></div>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Yekun Xal</p>
+              </div>
+              
+              <div className="bg-card border border-border rounded-2xl p-6 shadow-sm text-left">
+                <h4 className="font-bold flex items-center gap-2 mb-3"><ShieldAlert className="w-5 h-5 text-primary" /> AI Hakimin Rəyi</h4>
+                <p className="text-foreground/80 leading-relaxed text-sm">
+                  {evaluation.feedback}
+                </p>
+              </div>
 
-                <button 
-                  onClick={() => window.location.reload()}
-                  className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary-hover transition-colors shadow-md"
-                >
-                  <RefreshCcw className="w-5 h-5" /> Yeni Debata Başla
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
+              <div className="mt-6 flex justify-center">
+                <Link href="/az/dashboard?tab=leaderboard" className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-hover transition-colors">
+                  Reytinqə Bax
+                </Link>
+              </div>
+            </motion.div>
+          )}
+          
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input Area */}
-        <div className="bg-card border border-border rounded-b-3xl p-4 shrink-0 shadow-sm relative z-10">
+        <div className="p-4 border-t border-border bg-muted/20">
           <form 
             onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-            className="flex gap-3 relative"
+            className="flex gap-3 max-w-4xl mx-auto"
           >
-            <input
-              disabled={isLoading || isFinished}
+            <input 
               type="text"
-              className="flex-1 bg-background border border-border rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow pr-14 disabled:opacity-50"
               placeholder={isFinished ? "Debat bitmişdir." : "Arqumentinizi yazın..."}
+              className="flex-1 bg-background border border-border rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 transition-all"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={e => setInput(e.target.value)}
+              disabled={isLoading || isFinished}
+              autoFocus
             />
             <button 
               type="submit"
               disabled={!input.trim() || isLoading || isFinished}
-              className="absolute right-2 top-2 bottom-2 aspect-square bg-primary text-white rounded-xl flex items-center justify-center hover:bg-primary-hover disabled:opacity-50 disabled:hover:bg-primary transition-colors"
+              className="w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center hover:bg-primary-hover disabled:opacity-50 disabled:hover:bg-primary transition-all shadow-md shrink-0 group"
             >
-              <Send className="w-5 h-5 ml-1" />
+              <Send className="w-6 h-6 group-hover:scale-110 transition-transform" />
             </button>
           </form>
         </div>
-
+        
       </div>
     </div>
+  );
+}
+
+export default function AIPartnerPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
+      <AIPartnerContent />
+    </Suspense>
   );
 }
