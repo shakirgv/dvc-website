@@ -125,7 +125,7 @@ export default function AdminCertificatesPage() {
     let finalPdfUrl = "";
     try {
       // 1. Generate QR Code Data URI
-      const verifyUrl = `https://dvc.az/az/verify/${certId}`;
+      const verifyUrl = `https://dvc-website-chi.vercel.app/az/verify/${certId}`;
       const qrImageUri = await QRCode.toDataURL(verifyUrl, { margin: 1, scale: 5 });
 
       // 2. Read Original PDF
