@@ -6,6 +6,7 @@ import { Lock, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -89,34 +90,26 @@ export default function ResetPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Yeni Şifrə</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
-                <input 
-                  required 
-                  type="password" 
-                  minLength={6}
-                  className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" 
-                  placeholder="••••••••" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                />
-              </div>
+              <PasswordInput 
+                required 
+                minLength={6}
+                placeholder="••••••••" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                icon={<Lock className="w-5 h-5" />}
+              />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Şifrə Təkrarı</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
-                <input 
-                  required 
-                  type="password" 
-                  minLength={6}
-                  className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" 
-                  placeholder="••••••••" 
-                  value={confirmPassword} 
-                  onChange={(e) => setConfirmPassword(e.target.value)} 
-                />
-              </div>
+              <PasswordInput 
+                required 
+                minLength={6}
+                placeholder="••••••••" 
+                value={confirmPassword} 
+                onChange={(e) => setConfirmPassword(e.target.value)} 
+                icon={<Lock className="w-5 h-5" />}
+              />
             </div>
 
             <button 

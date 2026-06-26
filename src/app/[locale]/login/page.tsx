@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Mail, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -103,10 +104,14 @@ export default function LoginPage() {
               <label className="text-sm font-medium">Şifrə</label>
               <Link href="/forgot-password" className="text-xs text-primary hover:underline font-medium">Şifrəni unutmusunuz?</Link>
             </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
-              <input required type="password" minLength={6} className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
-            </div>
+            <PasswordInput
+              required
+              minLength={6}
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              icon={<Lock className="w-5 h-5" />}
+            />
           </div>
 
           <button 

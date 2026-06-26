@@ -8,6 +8,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n-context";
 import { AZERBAIJAN_REGIONS } from "@/lib/regions";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -713,7 +714,7 @@ export default function DashboardPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
                       <div className="md:col-span-2 space-y-2">
                         <label className="text-sm font-medium">Mövcud Şifrə</label>
-                        <input type="password" placeholder="Hazırkı şifrəniz" className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all" value={passwordData.currentPassword} onChange={e => { setPasswordData({...passwordData, currentPassword: e.target.value}); setPasswordUpdateError(""); }} />
+                        <PasswordInput placeholder="Hazırkı şifrəniz" value={passwordData.currentPassword} onChange={e => { setPasswordData({...passwordData, currentPassword: e.target.value}); setPasswordUpdateError(""); }} />
                         <div className="mt-2 text-right">
                           <Link href="/az/forgot-password" className="text-sm text-primary hover:underline font-medium">
                             Şifrəni unutmusunuz?
@@ -722,11 +723,11 @@ export default function DashboardPage() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Yeni Şifrə</label>
-                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all" value={passwordData.newPassword} onChange={e => { setPasswordData({...passwordData, newPassword: e.target.value}); setPasswordUpdateError(""); }} />
+                        <PasswordInput placeholder="Minimum 6 simvol" value={passwordData.newPassword} onChange={e => { setPasswordData({...passwordData, newPassword: e.target.value}); setPasswordUpdateError(""); }} />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Şifrəni Təkrarla</label>
-                        <input type="password" placeholder="Minimum 6 simvol" className="w-full border border-border rounded-xl p-3 bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all" value={passwordData.confirmPassword} onChange={e => { setPasswordData({...passwordData, confirmPassword: e.target.value}); setPasswordUpdateError(""); }} />
+                        <PasswordInput placeholder="Minimum 6 simvol" value={passwordData.confirmPassword} onChange={e => { setPasswordData({...passwordData, confirmPassword: e.target.value}); setPasswordUpdateError(""); }} />
                       </div>
                       <div className="md:col-span-2">
                         <button 
@@ -791,8 +792,7 @@ export default function DashboardPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Təhlükəsizlik üçün cari şifrənizi daxil edin</label>
-                  <input 
-                    type="password" 
+                  <PasswordInput 
                     placeholder="Şifrəniz" 
                     className={`w-full border rounded-xl p-3 bg-background focus:outline-none transition-all ${deleteError ? 'border-red-500 focus:ring-red-500/20' : 'border-border focus:ring-2 focus:ring-red-500/50'}`}
                     value={deletePassword} 
@@ -967,11 +967,11 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted-foreground mb-3">Google hesabınızdan asılı olmamaq üçün şifrə yaradın.</p>
                   
                   <label className="text-sm font-medium">Şifrə Təyin Et</label>
-                  <input required type="password" minLength={6} className="w-full border border-border rounded-xl py-3 px-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={onboardingData.password} onChange={e => setOnboardingData({...onboardingData, password: e.target.value})} placeholder="Minimum 6 simvol" />
+                  <PasswordInput required minLength={6} value={onboardingData.password} onChange={e => setOnboardingData({...onboardingData, password: e.target.value})} placeholder="Minimum 6 simvol" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Şifrəni Təkrarla</label>
-                  <input required type="password" minLength={6} className="w-full border border-border rounded-xl py-3 px-4 bg-background focus:ring-2 focus:ring-primary/50 outline-none" value={onboardingData.confirmPassword} onChange={e => setOnboardingData({...onboardingData, confirmPassword: e.target.value})} placeholder="Şifrəni təkrarlayın" />
+                  <PasswordInput required minLength={6} value={onboardingData.confirmPassword} onChange={e => setOnboardingData({...onboardingData, confirmPassword: e.target.value})} placeholder="Şifrəni təkrarlayın" />
                 </div>
 
                 <button 

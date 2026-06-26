@@ -7,6 +7,7 @@ import { ArrowRight, Mail, Lock, User, Phone, MapPin, GraduationCap } from "luci
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AZERBAIJAN_REGIONS } from "@/lib/regions";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -208,17 +209,25 @@ export default function RegisterPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Şifrə</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
-                <input required type="password" minLength={6} className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
-              </div>
+              <PasswordInput
+                required
+                minLength={6}
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                icon={<Lock className="w-5 h-5" />}
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Şifrə Təkrarı</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
-                <input required type="password" minLength={6} className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" placeholder="••••••••" value={formData.confirmPassword} onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})} />
-              </div>
+              <PasswordInput
+                required
+                minLength={6}
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                icon={<Lock className="w-5 h-5" />}
+              />
             </div>
           </div>
 
