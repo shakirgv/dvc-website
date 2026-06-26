@@ -159,6 +159,7 @@ export default function InnerRoomPage() {
           setIsLoading(false);
         } else {
           setIsRoleModalOpen(true);
+          setIsLoading(false);
         }
       } else {
         setIsLoading(false);
