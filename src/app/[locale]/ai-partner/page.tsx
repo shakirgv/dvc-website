@@ -58,10 +58,11 @@ function AIPartnerContent() {
           body: JSON.stringify({ action: "generate_topic" })
         });
         const data = await res.json();
+        if (data.error) throw new Error(data.error);
         finalTopic = data.topic;
-        setTopic(finalTopic);
-      } catch (err) {
-        finalTopic = "Müasir dövrdə texnologiya insanları daha da tənha edir.";
+        setTopic(finalTopic || "Mövzu generasiya edilə bilmədi");
+      } catch (err: any) {
+        finalTopic = "Mövzu tapılmadı (Xəta: " + err.message + ")";
         setTopic(finalTopic);
       }
     } else if (!rawTopic) {
@@ -161,9 +162,9 @@ function AIPartnerContent() {
         setTimeLeft(120); // reset timer
         setTimerActive(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setMessages([...newMessages, { role: "model", text: "Bağışlayın, xəta baş verdi." }]);
+      setMessages([...newMessages, { role: "model", text: `Xəta: ${error.message}` }]);
       setTimerActive(true);
     } finally {
       setIsLoading(false);
