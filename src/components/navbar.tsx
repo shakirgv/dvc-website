@@ -211,7 +211,23 @@ export function Navbar({ locale }: { locale?: Locale }) {
                               </div>
                               <div className="flex-1">
                                 <p className={`text-sm mb-1 ${isRead ? 'font-medium text-foreground/80' : 'font-bold text-foreground'}`}>{n.title}</p>
-                                <p className="text-xs text-muted-foreground line-clamp-3">{n.content}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {n.content}
+                                  {n.action_url && n.action_text && (
+                                    <>
+                                      {" - "}
+                                      <a 
+                                        href={n.action_url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="text-primary font-bold hover:underline"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {n.action_text}
+                                      </a>
+                                    </>
+                                  )}
+                                </p>
                                 <p className="text-[10px] text-muted-foreground mt-2 font-medium">
                                   {new Date(n.created_at).toLocaleString('az-AZ', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
                                 </p>

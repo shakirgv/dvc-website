@@ -13,7 +13,9 @@ export default function AdminBroadcastPage() {
     content: "",
     type: "info",
     targetType: "all",
-    targetInput: ""
+    targetInput: "",
+    action_url: "",
+    action_text: ""
   });
 
   const handleBroadcast = async (e: React.FormEvent) => {
@@ -60,7 +62,9 @@ export default function AdminBroadcastPage() {
       content: formData.content,
       type: formData.type,
       created_by: user?.id,
-      target_user_ids: target_user_ids
+      target_user_ids: target_user_ids,
+      action_url: formData.action_url || null,
+      action_text: formData.action_text || null
     });
 
     if (error) {
@@ -75,7 +79,7 @@ export default function AdminBroadcastPage() {
 
     setIsSending(false);
     alert(`Bildiriş uğurla ${targetMsg} göndərildi!`);
-    setFormData({ title: "", content: "", type: "info", targetType: "all", targetInput: "" });
+    setFormData({ title: "", content: "", type: "info", targetType: "all", targetInput: "", action_url: "", action_text: "" });
   };
 
   return (
@@ -157,6 +161,29 @@ export default function AdminBroadcastPage() {
               value={formData.content}
               onChange={e => setFormData({...formData, content: e.target.value})}
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Yönləndirmə Linki (URL) - İxtiyari</label>
+              <input 
+                type="url" 
+                placeholder="https://..." 
+                className="w-full p-4 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                value={formData.action_url}
+                onChange={e => setFormData({...formData, action_url: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Link Mətni - İxtiyari</label>
+              <input 
+                type="text" 
+                placeholder="Məsələn: LİNK, Qeydiyyatdan Keç..." 
+                className="w-full p-4 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                value={formData.action_text}
+                onChange={e => setFormData({...formData, action_text: e.target.value})}
+              />
+            </div>
           </div>
 
           <div className="pt-4 border-t border-border flex items-center justify-between">

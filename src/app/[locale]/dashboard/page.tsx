@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, Camera, Plus, X, BookOpen, File as FileIcon, Bot, Zap, Users, Trophy, QrCode, History, Loader2, AlertCircle, Bell, Info, AlertTriangle, Copy } from "lucide-react";
+import { LogOut, User, FileText, PlayCircle, Award, CheckCircle2, Clock, Edit2, Camera, Plus, X, BookOpen, File as FileIcon, Bot, Zap, Users, Trophy, QrCode, History, Loader2, AlertCircle, Bell, Info, AlertTriangle, Copy, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n-context";
@@ -32,6 +32,9 @@ export default function DashboardPage() {
 
   // Notifications State
   const [notifications, setNotifications] = useState<any[]>([]);
+
+  // Resources State
+  const [resources, setResources] = useState<any[]>([]);
 
   // Onboarding State
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -110,6 +113,14 @@ export default function DashboardPage() {
     // Fetch Notifications
     const { data: notifs } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(5);
     if (notifs) setNotifications(notifs);
+
+    // Fetch Resources
+    const { data: resData } = await supabase
+      .from("resources")
+      .select("*")
+      .or(`target_user_ids.is.null,target_user_ids.cs.{${userId}}`)
+      .order("created_at", { ascending: false });
+    if (resData) setResources(resData);
 
     setIsLoadingApps(false);
   };
@@ -545,47 +556,55 @@ export default function DashboardPage() {
                 <div>
                   <h3 className="text-2xl font-bold mb-8">Resurslar</h3>
                   
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <PlayCircle className="w-5 h-5 text-primary" />
-                      <h4 className="text-lg font-semibold">Video Təlimlər</h4>
+                  {/* Videos */}
+                  {resources.filter(r => r.type === 'video').length > 0 && (
+                    <div className="mb-8">
+                      <div className="flex items-center gap-2 mb-4">
+                        <PlayCircle className="w-5 h-5 text-primary" />
+                        <h4 className="text-lg font-semibold">Video Təlimlər</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {resources.filter(r => r.type === 'video').map((r) => (
+                          <a href={r.file_url} target="_blank" rel="noopener noreferrer" key={r.id} className="group cursor-pointer p-3 rounded-2xl border border-border hover:border-primary/50 transition-colors bg-muted/20 block">
+                            <div className="w-full h-32 bg-black/5 dark:bg-white/5 rounded-xl mb-3 flex items-center justify-center relative overflow-hidden">
+                              <PlayCircle className="w-12 h-12 text-primary z-10 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                            </div>
+                            <h5 className="font-bold px-1">{r.title}</h5>
+                            <p className="text-xs text-muted-foreground px-1 mt-1">{r.video_duration || "Bilinmir"}</p>
+                          </a>
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[1, 2].map(i => (
-                        <div key={i} className="group cursor-pointer p-3 rounded-2xl border border-border hover:border-primary/50 transition-colors bg-muted/20">
-                          <div className="w-full h-32 bg-black/5 dark:bg-white/5 rounded-xl mb-3 flex items-center justify-center relative overflow-hidden">
-                            <PlayCircle className="w-12 h-12 text-primary z-10 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" />
-                          </div>
-                          <h5 className="font-bold px-1">Mövzu: Debatın Əsasları {i}</h5>
-                          <p className="text-xs text-muted-foreground px-1 mt-1">15 dəqiqə • YouTube</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  )}
 
-                  <div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <FileIcon className="w-5 h-5 text-primary" />
-                      <h4 className="text-lg font-semibold">PDF Materiallar</h4>
+                  {/* Files & Links */}
+                  {(resources.filter(r => r.type === 'file' || r.type === 'link').length > 0) && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <FileIcon className="w-5 h-5 text-primary" />
+                        <h4 className="text-lg font-semibold">Fayllar və Linklər</h4>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {resources.filter(r => r.type === 'file' || r.type === 'link').map((r) => (
+                          <a href={r.file_url} target="_blank" rel="noopener noreferrer" key={r.id} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-colors cursor-pointer group block">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${r.type === 'file' ? 'bg-red-500/10 group-hover:bg-red-500/20' : 'bg-primary/10 group-hover:bg-primary/20'}`}>
+                              {r.type === 'file' ? <FileText className="w-5 h-5 text-red-500" /> : <LinkIcon className="w-5 h-5 text-primary" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h5 className="font-semibold text-sm truncate">{r.title}</h5>
+                              <p className="text-xs text-muted-foreground mt-0.5">{r.type === 'file' ? `Fayl • ${r.file_size || 'N/A'}` : 'Xarici Link'}</p>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {[
-                        "Milli Debat Qaydaları Kitabçası", 
-                        "Arqumentasiya Texnikaları",
-                        "Hakimlik Təlimatı"
-                      ].map((title, i) => (
-                        <div key={i} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-colors cursor-pointer group">
-                          <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 group-hover:bg-red-500/20 transition-colors">
-                            <FileText className="w-5 h-5 text-red-500" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h5 className="font-semibold text-sm truncate">{title}</h5>
-                            <p className="text-xs text-muted-foreground mt-0.5">PDF • 2.4 MB</p>
-                          </div>
-                        </div>
-                      ))}
+                  )}
+
+                  {resources.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      Hazırda heç bir resurs yoxdur.
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
