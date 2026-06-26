@@ -85,7 +85,8 @@ export default function RoomsLobbyPage() {
       setIsCreateModalOpen(false);
       router.push(`/${locale}/rooms/${data.id}`);
     } else {
-      alert("Otaq yaradılarkən xəta baş verdi.");
+      console.error("Room creation error:", error);
+      alert("Otaq yaradılarkən xəta baş verdi: " + (error?.message || ""));
     }
   };
 

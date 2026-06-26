@@ -48,7 +48,7 @@ export default function AdminRoomsPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    await supabase.from('rooms').insert({
+    const { data, error } = await supabase.from('rooms').insert({
       title: newRoom.name,
       topic: newRoom.topic,
       max_capacity: newRoom.maxParticipants,
@@ -57,6 +57,12 @@ export default function AdminRoomsPage() {
       status: "waiting",
       room_type: "public"
     });
+
+    if (error) {
+      console.error("Admin room creation error:", error);
+      alert("Xəta baş verdi: " + error.message);
+      return;
+    }
 
     setIsModalOpen(false);
     setNewRoom({ name: "", topic: "", maxParticipants: 4 });
