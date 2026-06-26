@@ -56,8 +56,14 @@ export function Navbar({ locale }: { locale?: Locale }) {
   }, []);
 
   const fetchNotifications = async (userId: string) => {
-    // Sadece son 10 bildirişi gətir
-    const { data: notifs } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(10);
+    // Sadece qlobal və ya istifadəçinin özünə ünvanlanan son 10 bildirişi gətir
+    const { data: notifs } = await supabase
+      .from("notifications")
+      .select("*")
+      .or(`target_user_ids.is.null,target_user_ids.cs.{${userId}}`)
+      .order("created_at", { ascending: false })
+      .limit(10);
+      
     if (notifs) setNotifications(notifs);
 
     // Oxunmuş bildirişləri tap
