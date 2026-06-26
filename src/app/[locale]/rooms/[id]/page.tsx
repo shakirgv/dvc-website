@@ -124,18 +124,37 @@ export default function InnerRoomPage() {
     setEditCode(roomData.room_code || '');
 
     // Fetch Messages
-    const { data: msgs } = await supabase.from('room_messages').select('*, profiles:user_id(first_name, last_name)').eq('room_id', roomId).order('created_at', { ascending: true });
-    if (msgs) setMessages(msgs);
-
-    // Fetch Participants
-    const { data: parts } = await supabase.from('room_participants').select('*, profiles:user_id(first_name, last_name, dvc_id)').eq('room_id', roomId).order('joined_at', { ascending: true });
+    const { data: rawMsgs, error: msgsErr } = await supabase.from('room_messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
     
-    if (parts) {
-      setParticipants(parts);
-      const isParticipant = parts.find((p: any) => p.user_id === session.user.id);
+    // Fetch Participants
+    const { data: rawParts, error: partsErr } = await supabase.from('room_participants').select('*').eq('room_id', roomId).order('joined_at', { ascending: true });
+    
+    if (msgsErr) console.error("Error fetching messages:", msgsErr);
+    if (partsErr) console.error("Error fetching parts:", partsErr);
+
+    // Fetch Profiles manually
+    const userIds = new Set<string>();
+    if (rawMsgs) rawMsgs.forEach(m => { if (m.user_id) userIds.add(m.user_id); });
+    if (rawParts) rawParts.forEach(p => { if (p.user_id) userIds.add(p.user_id); });
+    
+    let profMap: any = {};
+    if (userIds.size > 0) {
+      const { data: profs } = await supabase.from('profiles').select('id, first_name, last_name, dvc_id').in('id', Array.from(userIds));
+      if (profs) profMap = profs.reduce((acc: any, p: any) => { acc[p.id] = p; return acc; }, {});
+    }
+
+    if (rawMsgs) {
+      rawMsgs.forEach(m => { m.profiles = profMap[m.user_id]; });
+      setMessages(rawMsgs);
+    }
+    
+    if (rawParts) {
+      rawParts.forEach(p => { p.profiles = profMap[p.user_id]; });
+      setParticipants(rawParts);
       
+      const isParticipant = rawParts.find((p: any) => p.user_id === session.user.id);
       if (!isParticipant) {
-        if (parts.length >= roomData.max_capacity) {
+        if (rawParts.length >= roomData.max_capacity) {
           alert("Otaq artıq doludur. Yalnız izləyici kimi qala bilərsiniz.");
           setIsLoading(false);
         } else {
@@ -144,15 +163,29 @@ export default function InnerRoomPage() {
       } else {
         setIsLoading(false);
       }
+    } else {
+      // If error or no parts, stop loading
+      setIsLoading(false);
     }
   };
 
   const fetchParticipants = async () => {
-    const { data: parts } = await supabase.from('room_participants')
-      .select('*, profiles:user_id(first_name, last_name, dvc_id)')
+    const { data: rawParts } = await supabase.from('room_participants')
+      .select('*')
       .eq('room_id', roomId)
       .order('joined_at', { ascending: true });
-    if (parts) setParticipants(parts);
+      
+    if (rawParts) {
+      const userIds = [...new Set(rawParts.map(p => p.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase.from('profiles').select('id, first_name, last_name, dvc_id').in('id', userIds);
+        if (profs) {
+          const profMap = profs.reduce((acc: any, p: any) => { acc[p.id] = p; return acc; }, {});
+          rawParts.forEach(p => { p.profiles = profMap[p.user_id]; });
+        }
+      }
+      setParticipants(rawParts);
+    }
   };
 
   const leaveRoom = async () => {
