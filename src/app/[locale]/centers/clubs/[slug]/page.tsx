@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Users, Calendar, Phone, Mail, Building2, User, Plus } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Calendar, Phone, Mail, Building2, User, Plus, Award, MessageCircle, FileText, ExternalLink, Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useTranslation } from "@/lib/i18n-context";
 import dynamic from "next/dynamic";
@@ -80,15 +80,15 @@ export default function CenterDetailsPage() {
         </button>
 
         {/* Header Section */}
-        <div className="bg-card border border-border rounded-3xl p-8 md:p-12 shadow-sm mb-8 flex flex-col md:flex-row items-center md:items-start gap-8">
-          <div className="w-32 h-32 md:w-48 md:h-48 rounded-3xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 overflow-hidden">
+        <div className="bg-card border border-border rounded-3xl p-8 md:p-12 shadow-sm mb-8 flex flex-col md:flex-row items-center md:items-start gap-8 relative overflow-hidden">
+          <div className="w-32 h-32 md:w-48 md:h-48 rounded-3xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 overflow-hidden z-10">
             {center.image_url ? (
               <img src={center.image_url} alt={name} className="w-full h-full object-cover" />
             ) : (
               center.type === 'club' ? <Building2 className="w-16 h-16 text-primary" /> : <MapPin className="w-16 h-16 text-primary" />
             )}
           </div>
-          <div className="flex-1 text-center md:text-left">
+          <div className="flex-1 text-center md:text-left z-10">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">{name}</h1>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 text-sm font-bold text-muted-foreground mb-8">
               <div className="flex items-center gap-2">
@@ -99,6 +99,12 @@ export default function CenterDetailsPage() {
                 <Users className="w-4 h-4 text-primary" />
                 {locale === "az" ? "Aktiv üzv:" : "Active members:"} {center.members_count}
               </div>
+              {center.total_projects > 0 && (
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary" />
+                  {locale === "az" ? "Layihə sayı:" : "Total projects:"} {center.total_projects}
+                </div>
+              )}
             </div>
             
             <Link 
@@ -120,6 +126,33 @@ export default function CenterDetailsPage() {
                 {description || "Məlumat yoxdur."}
               </div>
             </div>
+
+            {/* Achievements */}
+            {center.achievements && (
+              <div className="bg-card border border-border rounded-3xl p-8 shadow-sm">
+                <h2 className="text-2xl font-bold mb-4 flex items-center gap-3">
+                  <Award className="w-6 h-6 text-yellow-500" />
+                  {locale === "az" ? "Klubun Uğurları" : "Achievements"}
+                </h2>
+                <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap font-medium">
+                  {center.achievements}
+                </div>
+              </div>
+            )}
+
+            {/* Gallery */}
+            {center.gallery_images && center.gallery_images.length > 0 && (
+              <div className="bg-card border border-border rounded-3xl p-8 shadow-sm">
+                <h2 className="text-2xl font-bold mb-6">{locale === "az" ? "Qalereya" : "Gallery"}</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {center.gallery_images.map((img: string, idx: number) => (
+                    <div key={idx} className="aspect-square rounded-2xl overflow-hidden border border-border group">
+                      <img src={img} alt={`Gallery ${idx}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Map */}
             <div className="bg-card border border-border rounded-3xl p-8 shadow-sm">
@@ -143,24 +176,29 @@ export default function CenterDetailsPage() {
             {/* Leadership */}
             <div className="bg-card border border-border rounded-3xl p-8 shadow-sm">
               <h2 className="text-xl font-bold mb-6">{locale === "az" ? "Klub Rəhbərliyi" : "Club Leadership"}</h2>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                  <User className="w-6 h-6 text-muted-foreground" />
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                  <User className="w-7 h-7 text-primary" />
                 </div>
                 <div>
-                  <h4 className="font-bold">Rəhbər</h4>
-                  <p className="text-xs text-muted-foreground">Klub Sədri</p>
+                  <h4 className="font-bold text-lg leading-tight mb-1">{center.leader_name || "Klub Sədri"}</h4>
+                  <p className="text-sm text-muted-foreground mb-1">{center.leader_role || "Rəhbər"}</p>
+                  {center.leader_linkedin && (
+                    <a href={center.leader_linkedin} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 font-semibold hover:underline flex items-center gap-1">
+                      LinkedIn Profil <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Contact */}
+            {/* Contact & Socials */}
             <div className="bg-card border border-border rounded-3xl p-8 shadow-sm">
               <h2 className="text-xl font-bold mb-6">{locale === "az" ? "Əlaqə" : "Contact"}</h2>
               <div className="space-y-4">
                 {center.phone && (
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
                       <Phone className="w-4 h-4" />
                     </div>
                     <span className="font-semibold">{center.phone}</span>
@@ -168,13 +206,29 @@ export default function CenterDetailsPage() {
                 )}
                 {center.email && (
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
                       <Mail className="w-4 h-4" />
                     </div>
                     <span className="font-semibold">{center.email}</span>
                   </div>
                 )}
-                {!center.phone && !center.email && (
+                
+                {(center.social_instagram || center.social_whatsapp) && (
+                  <div className="pt-4 mt-4 border-t border-border flex gap-3">
+                    {center.social_instagram && (
+                      <a href={center.social_instagram} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-pink-500/10 text-pink-600 rounded-xl font-bold hover:bg-pink-500/20 transition-colors">
+                        <LinkIcon className="w-4 h-4" /> Instagram
+                      </a>
+                    )}
+                    {center.social_whatsapp && (
+                      <a href={center.social_whatsapp} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-500/10 text-green-600 rounded-xl font-bold hover:bg-green-500/20 transition-colors">
+                        <MessageCircle className="w-4 h-4" /> WhatsApp
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {!center.phone && !center.email && !center.social_instagram && !center.social_whatsapp && (
                   <p className="text-sm text-muted-foreground">Əlaqə məlumatı yoxdur.</p>
                 )}
               </div>

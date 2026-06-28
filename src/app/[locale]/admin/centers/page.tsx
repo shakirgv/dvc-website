@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe, Wand2 } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe, Wand2, LayoutDashboard, Users, ImagePlus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { logAdminAction } from "@/lib/audit-logger";
@@ -20,9 +20,17 @@ interface CenterItem {
   description_az: string; description_en: string; description_ru: string;
   established_year: string;
   members_count: string;
+  total_projects: number;
   phone: string;
   email: string;
   image_url: string;
+  gallery_images: string[];
+  achievements: string;
+  leader_name: string;
+  leader_role: string;
+  leader_linkedin: string;
+  social_instagram: string;
+  social_whatsapp: string;
   latitude: number;
   longitude: number;
   created_at: string;
@@ -33,10 +41,12 @@ export default function AdminCentersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLang, setCurrentLang] = useState<Language>("az");
+  const [activeTab, setActiveTab] = useState<"main" | "leadership" | "media">("main");
   
   // Form State
   const [formData, setFormData] = useState<Partial<CenterItem>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [isGalleryUploading, setIsGalleryUploading] = useState(false);
 
   useEffect(() => {
     fetchCenters();
@@ -69,6 +79,7 @@ export default function AdminCentersPage() {
   const handleEdit = (item: CenterItem) => {
     setFormData(item);
     setCurrentLang("az");
+    setActiveTab("main");
     setIsModalOpen(true);
   };
 
@@ -81,14 +92,23 @@ export default function AdminCentersPage() {
       description_az: "", description_en: "", description_ru: "",
       established_year: "",
       members_count: "",
+      total_projects: 0,
       phone: "",
       email: "",
       image_url: "",
+      gallery_images: [],
+      achievements: "",
+      leader_name: "",
+      leader_role: "",
+      leader_linkedin: "",
+      social_instagram: "",
+      social_whatsapp: "",
       latitude: 40.1431,
       longitude: 47.5769,
       created_at: new Date().toISOString()
     });
     setCurrentLang("az");
+    setActiveTab("main");
     setIsModalOpen(true);
   };
 
@@ -159,6 +179,45 @@ export default function AdminCentersPage() {
       setFormData(prev => ({ ...prev, image_url: data.publicUrl }));
     }
     setIsUploading(false);
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setIsGalleryUploading(true);
+    
+    const uploadedUrls: string[] = [];
+    const files = Array.from(e.target.files);
+
+    for (const file of files) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `centers/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("dvc_images")
+        .upload(filePath, file);
+
+      if (!uploadError) {
+        const { data } = supabase.storage.from("dvc_images").getPublicUrl(filePath);
+        if (data?.publicUrl) {
+          uploadedUrls.push(data.publicUrl);
+        }
+      }
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      gallery_images: [...(prev.gallery_images || []), ...uploadedUrls]
+    }));
+    
+    setIsGalleryUploading(false);
+  };
+
+  const removeGalleryImage = (indexToRemove: number) => {
+    setFormData(prev => ({
+      ...prev,
+      gallery_images: prev.gallery_images?.filter((_, index) => index !== indexToRemove)
+    }));
   };
 
   const generateSlug = () => {
@@ -258,208 +317,390 @@ export default function AdminCentersPage() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-4xl bg-card border border-border rounded-3xl shadow-2xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar"
             >
-              <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted text-muted-foreground">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted text-muted-foreground">
                 <X className="w-5 h-5" />
               </button>
               
               <h3 className="text-2xl font-bold mb-6">{formData.id ? "Məlumatı Redaktə Et" : "Yeni Mərkəz/Klub Yarat"}</h3>
               
+              <div className="flex border-b border-border mb-6 overflow-x-auto custom-scrollbar hide-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("main")}
+                  className={`flex items-center gap-2 px-6 py-3 font-bold text-sm whitespace-nowrap transition-colors border-b-2 ${
+                    activeTab === "main" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4" /> Əsas Məlumatlar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("leadership")}
+                  className={`flex items-center gap-2 px-6 py-3 font-bold text-sm whitespace-nowrap transition-colors border-b-2 ${
+                    activeTab === "leadership" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Users className="w-4 h-4" /> Rəhbərlik və Uğurlar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("media")}
+                  className={`flex items-center gap-2 px-6 py-3 font-bold text-sm whitespace-nowrap transition-colors border-b-2 ${
+                    activeTab === "media" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <ImagePlus className="w-4 h-4" /> Media və Haqqında
+                </button>
+              </div>
+
               <form onSubmit={handleSave} className="space-y-6">
                 
-                {/* GLOBAL SETTINGS */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-2xl border border-border">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Tipi</label>
-                    <select 
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={formData.type || "club"}
-                      onChange={e => handleGlobalChange("type", e.target.value)}
-                    >
-                      <option value="club">Debat Klubu</option>
-                      <option value="regional">Regional Mərkəz</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase flex items-center justify-between">
-                      URL Slug (Unikal)
-                      <button 
-                        type="button" 
-                        onClick={generateSlug}
-                        className="text-primary hover:bg-primary/10 p-1 rounded-md transition-colors"
-                        title="Avtomatik Yarat"
+                {/* TAB 1: MAIN */}
+                {activeTab === "main" && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-2xl border border-border">
+                    <div className="space-y-1.5 col-span-2">
+                      <label className="text-sm font-bold text-muted-foreground uppercase">Tipi</label>
+                      <select 
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={formData.type || "club"}
+                        onChange={e => handleGlobalChange("type", e.target.value)}
                       >
-                        <Wand2 className="w-4 h-4" />
-                      </button>
-                    </label>
-                    <input 
-                      required
-                      type="text" 
-                      placeholder="meselen: asoiu-debat"
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
-                      value={formData.slug || ""}
-                      onChange={e => handleGlobalChange("slug", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5 col-span-2">
-                    <label className="text-sm font-bold text-muted-foreground uppercase flex items-center justify-between">
-                      <span>Loqo / Şəkil</span>
-                      {isUploading && <span className="text-xs text-primary animate-pulse">Yüklənir...</span>}
-                    </label>
-                    <div className="flex gap-2">
+                        <option value="club">Debat Klubu</option>
+                        <option value="regional">Regional Mərkəz</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5 col-span-2">
+                      <label className="text-sm font-bold text-muted-foreground uppercase flex items-center justify-between">
+                        URL Slug (Unikal)
+                        <button 
+                          type="button" 
+                          onClick={generateSlug}
+                          className="text-primary hover:bg-primary/10 p-1 rounded-md transition-colors"
+                          title="Avtomatik Yarat"
+                        >
+                          <Wand2 className="w-4 h-4" />
+                        </button>
+                      </label>
+                      <input 
+                        required
+                        type="text" 
+                        placeholder="meselen: asoiu-debat"
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
+                        value={formData.slug || ""}
+                        onChange={e => handleGlobalChange("slug", e.target.value)}
+                      />
+                    </div>
+
+                    {/* LANGUAGE TABS INSIDE MAIN */}
+                    <div className="col-span-4 border-b border-border flex gap-4 mt-4">
+                      {(["az", "en", "ru"] as Language[]).map((lang) => (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => setCurrentLang(lang)}
+                          className={`pb-3 px-4 font-bold text-sm uppercase transition-colors relative ${
+                            currentLang === lang ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <Globe className="w-4 h-4 inline-block mr-2 -mt-1" />
+                          {lang === "az" ? "Azərbaycan" : lang === "en" ? "İngilis" : "Rus"}
+                          {currentLang === lang && (
+                            <motion.div layoutId="activeLangTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="col-span-4 space-y-4 pt-2">
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-bold text-muted-foreground uppercase">Mərkəzin / Klubun Adı ({currentLang.toUpperCase()})</label>
+                        <input 
+                          required={currentLang === "az"} 
+                          type="text" 
+                          className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          value={(formData as any)[`name_${currentLang}`] || ""}
+                          onChange={e => handleFieldChange("name", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-bold text-muted-foreground uppercase">Ünvan ({currentLang.toUpperCase()})</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          value={(formData as any)[`address_${currentLang}`] || ""}
+                          onChange={e => handleFieldChange("address", e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-muted-foreground uppercase">Yaranma İli</label>
                       <input 
                         type="text" 
-                        placeholder="https://..."
                         className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        value={formData.image_url || ""}
-                        onChange={e => handleGlobalChange("image_url", e.target.value)}
+                        value={formData.established_year || ""}
+                        onChange={e => handleGlobalChange("established_year", e.target.value)}
                       />
-                      <label className="flex items-center justify-center px-4 py-2 bg-muted border border-border rounded-xl cursor-pointer hover:bg-muted/80 transition-colors shrink-0">
-                        <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={handleImageUpload}
-                          disabled={isUploading}
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-muted-foreground uppercase">Üzv Sayı</label>
+                      <input 
+                        type="text" 
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={formData.members_count || ""}
+                        onChange={e => handleGlobalChange("members_count", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5 col-span-2">
+                      <label className="text-sm font-bold text-muted-foreground uppercase text-primary">Layihə Sayı (Ümumi)</label>
+                      <input 
+                        type="number" 
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={formData.total_projects || 0}
+                        onChange={e => handleGlobalChange("total_projects", parseInt(e.target.value))}
+                      />
+                    </div>
+                    <div className="space-y-1.5 col-span-2">
+                      <label className="text-sm font-bold text-muted-foreground uppercase">Telefon</label>
+                      <input 
+                        type="text" 
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={formData.phone || ""}
+                        onChange={e => handleGlobalChange("phone", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5 col-span-2">
+                      <label className="text-sm font-bold text-muted-foreground uppercase">E-poçt</label>
+                      <input 
+                        type="email" 
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={formData.email || ""}
+                        onChange={e => handleGlobalChange("email", e.target.value)}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* TAB 2: LEADERSHIP & ACHIEVEMENTS */}
+                {activeTab === "leadership" && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                    <div className="p-4 bg-muted/30 rounded-2xl border border-border space-y-4">
+                      <h3 className="text-sm font-bold text-primary uppercase mb-2">Klub / Mərkəz Rəhbərliyi</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-muted-foreground uppercase">Ad və Soyad</label>
+                          <input 
+                            type="text" 
+                            className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={formData.leader_name || ""}
+                            onChange={e => handleGlobalChange("leader_name", e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-muted-foreground uppercase">Vəzifəsi (məs: Klub Sədri)</label>
+                          <input 
+                            type="text" 
+                            className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={formData.leader_role || ""}
+                            onChange={e => handleGlobalChange("leader_role", e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5 md:col-span-2">
+                          <label className="text-xs font-bold text-muted-foreground uppercase">LinkedIn Profili (URL)</label>
+                          <input 
+                            type="text" 
+                            className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={formData.leader_linkedin || ""}
+                            onChange={e => handleGlobalChange("leader_linkedin", e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-muted/30 rounded-2xl border border-border space-y-4">
+                      <h3 className="text-sm font-bold text-primary uppercase mb-2">Sosial Şəbəkələr</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-muted-foreground uppercase">Instagram (URL)</label>
+                          <input 
+                            type="text" 
+                            className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={formData.social_instagram || ""}
+                            onChange={e => handleGlobalChange("social_instagram", e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-muted-foreground uppercase">WhatsApp Qrup (URL)</label>
+                          <input 
+                            type="text" 
+                            className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={formData.social_whatsapp || ""}
+                            onChange={e => handleGlobalChange("social_whatsapp", e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-muted-foreground uppercase">Klubun Uğurları (Nailiyyətlər)</label>
+                      <textarea 
+                        rows={5}
+                        placeholder="Məsələn:
+- Respublika Turniri Çempionu (2023)
+- Ən Yaxşı Klub (2022)"
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none font-mono text-sm"
+                        value={formData.achievements || ""}
+                        onChange={e => handleGlobalChange("achievements", e.target.value)}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* TAB 3: MEDIA & ABOUT */}
+                {activeTab === "media" && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Main Logo */}
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-bold text-muted-foreground uppercase flex items-center justify-between">
+                          <span>Loqo / Örtük Şəkli</span>
+                          {isUploading && <span className="text-xs text-primary animate-pulse">Yüklənir...</span>}
+                        </label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="https://..."
+                            className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={formData.image_url || ""}
+                            onChange={e => handleGlobalChange("image_url", e.target.value)}
+                          />
+                          <label className="flex items-center justify-center px-4 py-2 bg-muted border border-border rounded-xl cursor-pointer hover:bg-muted/80 transition-colors shrink-0">
+                            <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={handleImageUpload}
+                              disabled={isUploading}
+                            />
+                          </label>
+                        </div>
+                        {formData.image_url && (
+                          <div className="mt-2 w-32 h-32 rounded-xl overflow-hidden border border-border">
+                            <img src={formData.image_url} alt="Logo" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Multi Gallery */}
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-bold text-muted-foreground uppercase flex items-center justify-between">
+                          <span>Qalereya Şəkilləri (Çoxlu)</span>
+                          {isGalleryUploading && <span className="text-xs text-primary animate-pulse">Yüklənir...</span>}
+                        </label>
+                        <label className="flex items-center justify-center w-full px-4 py-8 bg-muted border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-muted/80 transition-colors group">
+                          <div className="flex flex-col items-center text-muted-foreground group-hover:text-foreground">
+                            <ImagePlus className="w-8 h-8 mb-2" />
+                            <span className="text-sm font-medium">Şəkilləri seçin və ya bura atın</span>
+                          </div>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            multiple
+                            className="hidden" 
+                            onChange={handleGalleryUpload}
+                            disabled={isGalleryUploading}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Gallery Preview */}
+                    {formData.gallery_images && formData.gallery_images.length > 0 && (
+                      <div className="p-4 bg-muted/30 rounded-2xl border border-border">
+                        <h4 className="text-sm font-bold mb-3">Yüklənmiş Şəkillər ({formData.gallery_images.length})</h4>
+                        <div className="flex flex-wrap gap-3">
+                          {formData.gallery_images.map((img, idx) => (
+                            <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border border-border group">
+                              <img src={img} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => removeGalleryImage(idx)}
+                                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                              >
+                                <Trash2 className="w-5 h-5 text-white" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* About Text */}
+                    <div className="space-y-1.5 pt-4 border-t border-border">
+                      <div className="flex items-center gap-4 mb-2">
+                        <label className="text-sm font-bold text-muted-foreground uppercase">Haqqında / Təsvir</label>
+                        <div className="flex gap-2">
+                          {(["az", "en", "ru"] as Language[]).map(lang => (
+                            <button
+                              key={lang}
+                              type="button"
+                              onClick={() => setCurrentLang(lang)}
+                              className={`px-2 py-0.5 text-xs font-bold rounded-md ${currentLang === lang ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}
+                            >
+                              {lang.toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <textarea 
+                        rows={5}
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                        value={(formData as any)[`description_${currentLang}`] || ""}
+                        onChange={e => handleFieldChange("description", e.target.value)}
+                      />
+                    </div>
+
+                    {/* Xəritə Koordinatları */}
+                    <div className="space-y-4 pt-4 border-t border-border">
+                      <h3 className="text-sm font-bold text-muted-foreground uppercase">Xəritə Koordinatları</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-muted-foreground uppercase">Enlik (Latitude)</label>
+                          <input 
+                            type="number" 
+                            step="any"
+                            className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={formData.latitude || ""}
+                            onChange={e => handleGlobalChange("latitude", parseFloat(e.target.value))}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-muted-foreground uppercase">Uzunluq (Longitude)</label>
+                          <input 
+                            type="number" 
+                            step="any"
+                            className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={formData.longitude || ""}
+                            onChange={e => handleGlobalChange("longitude", parseFloat(e.target.value))}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <p className="text-xs text-muted-foreground mb-2">Mərkəzin yerləşdiyi konumu dəqiqləşdirmək üçün xəritə üzərində klikləyə bilərsiniz.</p>
+                        <MapPicker 
+                          lat={formData.latitude || 40.1431} 
+                          lng={formData.longitude || 47.5769} 
+                          onChange={(lat, lng) => {
+                            handleGlobalChange("latitude", lat);
+                            handleGlobalChange("longitude", lng);
+                          }} 
                         />
-                      </label>
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Yaranma İli</label>
-                    <input 
-                      type="text" 
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={formData.established_year || ""}
-                      onChange={e => handleGlobalChange("established_year", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Üzv Sayı</label>
-                    <input 
-                      type="text" 
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={formData.members_count || ""}
-                      onChange={e => handleGlobalChange("members_count", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Telefon</label>
-                    <input 
-                      type="text" 
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={formData.phone || ""}
-                      onChange={e => handleGlobalChange("phone", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">E-poçt</label>
-                    <input 
-                      type="email" 
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={formData.email || ""}
-                      onChange={e => handleGlobalChange("email", e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Xəritə Koordinatları */}
-                <div className="space-y-4 pt-4 border-t border-border">
-                  <h3 className="text-sm font-bold text-muted-foreground uppercase">Xəritə Koordinatları</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-muted-foreground uppercase">Enlik (Latitude)</label>
-                      <input 
-                        type="number" 
-                        step="any"
-                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        value={formData.latitude || ""}
-                        onChange={e => handleGlobalChange("latitude", parseFloat(e.target.value))}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-muted-foreground uppercase">Uzunluq (Longitude)</label>
-                      <input 
-                        type="number" 
-                        step="any"
-                        className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        value={formData.longitude || ""}
-                        onChange={e => handleGlobalChange("longitude", parseFloat(e.target.value))}
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <p className="text-xs text-muted-foreground mb-2">Mərkəzin yerləşdiyi konumu dəqiqləşdirmək üçün xəritə üzərində klikləyə bilərsiniz.</p>
-                    <MapPicker 
-                      lat={formData.latitude || 40.1431} 
-                      lng={formData.longitude || 47.5769} 
-                      onChange={(lat, lng) => {
-                        handleGlobalChange("latitude", lat);
-                        handleGlobalChange("longitude", lng);
-                      }} 
-                    />
-                  </div>
-                </div>
-
-                {/* LANGUAGE TABS */}
-                <div className="border-b border-border flex gap-4">
-                  {(["az", "en", "ru"] as Language[]).map((lang) => (
-                    <button
-                      key={lang}
-                      type="button"
-                      onClick={() => setCurrentLang(lang)}
-                      className={`pb-3 px-4 font-bold text-sm uppercase transition-colors relative ${
-                        currentLang === lang ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <Globe className="w-4 h-4 inline-block mr-2 -mt-1" />
-                      {lang === "az" ? "Azərbaycan" : lang === "en" ? "İngilis" : "Rus"}
-                      {currentLang === lang && (
-                        <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-
-                {/* MULTI-LANGUAGE FIELDS */}
-                <motion.div
-                  key={currentLang}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-5"
-                >
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Mərkəzin / Klubun Adı ({currentLang.toUpperCase()})</label>
-                    <input 
-                      required={currentLang === "az"} 
-                      type="text" 
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={(formData as any)[`name_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("name", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Ünvan ({currentLang.toUpperCase()})</label>
-                    <input 
-                      type="text" 
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={(formData as any)[`address_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("address", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">Haqqında / Təsvir ({currentLang.toUpperCase()})</label>
-                    <textarea 
-                      rows={4}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-                      value={(formData as any)[`description_${currentLang}`] || ""}
-                      onChange={e => handleFieldChange("description", e.target.value)}
-                    />
-                  </div>
-                </motion.div>
+                  </motion.div>
+                )}
 
                 <div className="flex gap-3 pt-4 border-t border-border mt-6">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-muted text-foreground rounded-xl font-bold hover:bg-muted/80 transition-colors">Ləğv et</button>
