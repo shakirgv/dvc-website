@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe, Wand2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { logAdminAction } from "@/lib/audit-logger";
@@ -161,6 +161,21 @@ export default function AdminCentersPage() {
     setIsUploading(false);
   };
 
+  const generateSlug = () => {
+    if (!formData.name_az) {
+      alert("Zəhmət olmasa əvvəlcə Mərkəz/Klub adını (AZ) daxil edin.");
+      return;
+    }
+    const charMap: { [key: string]: string } = {
+      'ç': 'c', 'ş': 's', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ü': 'u', 'ə': 'e',
+      'Ç': 'c', 'Ş': 's', 'Ğ': 'g', 'İ': 'i', 'Ö': 'o', 'Ü': 'u', 'Ə': 'e'
+    };
+    let text = formData.name_az.replace(/[çşğıöüəÇŞĞİÖÜƏ]/g, match => charMap[match] || match);
+    text = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim();
+    const slug = text.replace(/[\s-]+/g, '-');
+    handleGlobalChange("slug", slug);
+  };
+
   return (
     <div>
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
@@ -265,7 +280,17 @@ export default function AdminCentersPage() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-muted-foreground uppercase">URL Slug (Unikal)</label>
+                    <label className="text-sm font-bold text-muted-foreground uppercase flex items-center justify-between">
+                      URL Slug (Unikal)
+                      <button 
+                        type="button" 
+                        onClick={generateSlug}
+                        className="text-primary hover:bg-primary/10 p-1 rounded-md transition-colors"
+                        title="Avtomatik Yarat"
+                      >
+                        <Wand2 className="w-4 h-4" />
+                      </button>
+                    </label>
                     <input 
                       required
                       type="text" 
