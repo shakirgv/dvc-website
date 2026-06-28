@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Image as ImageIcon, Globe, Wand2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { logAdminAction } from "@/lib/audit-logger";
@@ -10,6 +10,7 @@ type Language = "az" | "en" | "ru";
 
 interface TeamMember {
   id: string;
+  slug: string;
   name: string;
   role_az: string; role_en: string; role_ru: string;
   bio_az: string; bio_en: string; bio_ru: string;
@@ -113,6 +114,7 @@ export default function AdminTeamPage() {
       instagram_url: formData.instagram_url || "",
       facebook_url: formData.facebook_url || "",
       mail_address: formData.mail_address || "",
+      slug: formData.slug || "",
     };
 
     if (dataToSave.id) {
@@ -142,6 +144,21 @@ export default function AdminTeamPage() {
 
   const handleFieldChange = (baseField: "role" | "bio", value: string) => {
     setFormData(prev => ({ ...prev, [`${baseField}_${currentLang}`]: value }));
+  };
+
+  const generateSlug = () => {
+    if (!formData.name) {
+      alert("Zəhmət olmasa əvvəlcə Ad və Soyad daxil edin.");
+      return;
+    }
+    const charMap: { [key: string]: string } = {
+      'ç': 'c', 'ş': 's', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ü': 'u', 'ə': 'e',
+      'Ç': 'c', 'Ş': 's', 'Ğ': 'g', 'İ': 'i', 'Ö': 'o', 'Ü': 'u', 'Ə': 'e'
+    };
+    let text = formData.name.replace(/[çşğıöüəÇŞĞİÖÜƏ]/g, match => charMap[match] || match);
+    text = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim();
+    const slug = text.replace(/[\s-]+/g, '-');
+    handleGlobalChange("slug", slug);
   };
 
   return (
@@ -236,7 +253,7 @@ export default function AdminTeamPage() {
                 
                 {/* GLOBAL SETTINGS */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-2xl border border-border">
-                  <div className="space-y-1.5 md:col-span-2">
+                  <div className="space-y-1.5 md:col-span-1">
                     <label className="text-sm font-bold text-muted-foreground uppercase">Ad və Soyad</label>
                     <input 
                       required
@@ -244,6 +261,28 @@ export default function AdminTeamPage() {
                       className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
                       value={formData.name || ""}
                       onChange={e => handleGlobalChange("name", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-1">
+                    <label className="text-sm font-bold text-muted-foreground uppercase flex items-center justify-between">
+                      URL SLUG (UNİKAL)
+                      <button 
+                        type="button" 
+                        onClick={generateSlug}
+                        className="text-primary hover:bg-primary/10 p-1 rounded-md transition-colors"
+                        title="Avtomatik Yarat"
+                      >
+                        <Wand2 className="w-4 h-4" />
+                      </button>
+                    </label>
+                    <input 
+                      required
+                      type="text" 
+                      placeholder="elon-musk"
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
+                      value={formData.slug || ""}
+                      onChange={e => handleGlobalChange("slug", e.target.value)}
                     />
                   </div>
                   

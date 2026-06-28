@@ -8,6 +8,7 @@ import { useEffect, useState, useRef } from "react";
 import { Bell, Info, CheckCircle2, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n-context";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function Navbar({ locale }: { locale?: Locale }) {
   const pathname = usePathname();
@@ -122,6 +123,19 @@ export function Navbar({ locale }: { locale?: Locale }) {
     return `/${newLocale}${pathname}`;
   };
 
+  const isActive = (path: string) => {
+    if (path === `/${currentLang}`) {
+      return pathname === path;
+    }
+    return pathname?.startsWith(path) ?? false;
+  };
+
+  const navLinkClass = (path: string) => {
+    return isActive(path)
+      ? "text-sm font-bold text-primary transition-colors relative after:absolute after:-bottom-1 after:left-0 after:w-full after:h-0.5 after:bg-primary after:rounded-full"
+      : "text-sm font-medium text-foreground/80 hover:text-primary transition-colors";
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-black/5 dark:border-white/10 bg-background/80 backdrop-blur-md">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -130,25 +144,25 @@ export function Navbar({ locale }: { locale?: Locale }) {
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
-          <Link href={`/${currentLang}`} className="text-sm font-medium hover:text-primary transition-colors">
+          <Link href={`/${currentLang}`} className={navLinkClass(`/${currentLang}`)}>
             {t('navbar.home')}
           </Link>
-          <Link href={`/${currentLang}/about`} className="text-sm font-medium hover:text-primary transition-colors">
+          <Link href={`/${currentLang}/about`} className={navLinkClass(`/${currentLang}/about`)}>
             {t('navbar.about')}
           </Link>
-          <Link href={`/${currentLang}/programs`} className="text-sm font-medium hover:text-primary transition-colors">
+          <Link href={`/${currentLang}/programs`} className={navLinkClass(`/${currentLang}/programs`)}>
             {t('navbar.projects')}
           </Link>
-          <Link href={`/${currentLang}/centers`} className="text-sm font-medium hover:text-primary transition-colors">
+          <Link href={`/${currentLang}/centers`} className={navLinkClass(`/${currentLang}/centers`)}>
             {t('navbar.centers')}
           </Link>
-          <Link href={`/${currentLang}/partners`} className="text-sm font-medium hover:text-primary transition-colors">
+          <Link href={`/${currentLang}/partners`} className={navLinkClass(`/${currentLang}/partners`)}>
             {t('footer.partners')}
           </Link>
-          <Link href={`/${currentLang}/news`} className="text-sm font-medium hover:text-primary transition-colors">
+          <Link href={`/${currentLang}/news`} className={navLinkClass(`/${currentLang}/news`)}>
             {t('navbar.news')}
           </Link>
-          <Link href={`/${currentLang}/contact`} className="text-sm font-medium hover:text-primary transition-colors">
+          <Link href={`/${currentLang}/contact`} className={navLinkClass(`/${currentLang}/contact`)}>
             {t('footer.contact')}
           </Link>
         </nav>
@@ -178,9 +192,16 @@ export function Navbar({ locale }: { locale?: Locale }) {
                   )}
                 </button>
 
-                {isNotifOpen && (
-                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-card border border-border shadow-2xl rounded-2xl overflow-hidden z-50">
-                    <div className="p-4 border-b border-border/50 bg-muted/10 flex items-center justify-between">
+                <AnimatePresence>
+                  {isNotifOpen && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="absolute right-0 mt-3 w-80 sm:w-96 bg-card border border-border shadow-2xl rounded-2xl overflow-hidden z-50 origin-top-right"
+                    >
+                      <div className="p-4 border-b border-border/50 bg-muted/10 flex items-center justify-between">
                       <h4 className="font-bold text-sm">Bildirişlər</h4>
                       {unreadCount > 0 && (
                         <button 
@@ -240,8 +261,9 @@ export function Navbar({ locale }: { locale?: Locale }) {
                         })
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
               </div>
 
               <div className="h-6 w-px bg-border mx-1" />

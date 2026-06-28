@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
 import { Link as LinkIcon, Mail } from "lucide-react";
+import Link from "next/link";
 
 export function TeamSection() {
   const { t } = useTranslation();
@@ -77,45 +78,42 @@ export function TeamSection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="group relative rounded-3xl overflow-hidden aspect-[3/4] bg-card border border-white/10 hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 hover:-translate-y-2"
+                className="group relative rounded-3xl overflow-hidden aspect-[3/4] bg-card border border-white/10 hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 hover:-translate-y-2 flex flex-col"
               >
-                <img 
-                  src={member.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=600&auto=format&fit=crop"} 
-                  alt={member.name}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+                <Link href={`/${locale}/team/${member.slug || member.id}`} className="absolute inset-0 z-0">
+                  <img 
+                    src={member.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=600&auto=format&fit=crop"} 
+                    alt={member.name}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+                </Link>
                 
-                <div className="absolute inset-0 p-6 flex flex-col justify-end text-left translate-y-8 group-hover:translate-y-0 transition-transform duration-500">
+                <div className="absolute bottom-0 left-0 right-0 p-6 flex flex-col justify-end text-left pointer-events-none">
                   <h3 className="text-xl font-bold text-white mb-1">{member.name}</h3>
-                  <p className="text-primary-neon font-semibold text-sm mb-3 uppercase tracking-wider">{member[`role_${locale}`]}</p>
+                  <p className="text-primary-neon font-semibold text-sm mb-4 uppercase tracking-wider">{member[`role_${locale}`]}</p>
                   
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-                    <p className="text-white/80 text-sm line-clamp-3 mb-4">
-                      {member[`bio_${locale}`]}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      {member.linkedin_url && (
-                        <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/20 hover:-translate-y-1">
-                          <LinkIcon className="w-4 h-4" />
-                        </a>
-                      )}
-                      {member.instagram_url && (
-                        <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/20 hover:-translate-y-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-                        </a>
-                      )}
-                      {member.facebook_url && (
-                        <a href={member.facebook_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/20 hover:-translate-y-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-                        </a>
-                      )}
-                      {member.mail_address && (
-                        <a href={`mailto:${member.mail_address}`} className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/20 hover:-translate-y-1">
-                          <Mail className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-auto relative z-10">
+                    {member.linkedin_url && (
+                      <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/20 hover:-translate-y-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg>
+                      </a>
+                    )}
+                    {member.instagram_url && (
+                      <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/20 hover:-translate-y-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+                      </a>
+                    )}
+                    {member.facebook_url && (
+                      <a href={member.facebook_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/20 hover:-translate-y-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                      </a>
+                    )}
+                    {member.mail_address && (
+                      <a href={`mailto:${member.mail_address}`} className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors border border-white/20 hover:-translate-y-1">
+                        <Mail className="w-4 h-4" />
+                      </a>
+                    )}
                   </div>
                 </div>
               </motion.div>
